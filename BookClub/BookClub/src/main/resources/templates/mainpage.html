@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+	  <head>
+	      <meta charset="UTF-8">
+	      <title>Main Page</title>
+
+	      <!-- Bootstrap CSS -->
+	      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+	      <!-- Eigene CSS -->
+	      <link rel="stylesheet" href="/css/general.css">
+
+	      <!-- jQuery (WICHTIG für DataTables) -->
+	      <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+	      <!-- DataTables -->
+	      <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+	      <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+	  </head>
+
+
+<body>
+	<header th:replace="header :: mainHeader"></header>
+
+<h1>Willkommen auf der Hauptseite!</h1>
+
+<!-- Link für alle Benutzer -->
+<a th:href="@{/ownCollection}">📚 Meine Sammlung</a>
+
+<br><br>
+
+<a th:href="@{/groupMain}">📚 Meine Gruppen</a>
+
+<br><br>
+
+<!-- NUR sichtbar, wenn der Benutzer die Rolle ADMIN oder SUPERADMIN hat -->
+<a th:href="@{/admin}" sec:authorize="hasAnyRole('ADMIN', 'SUPERADMIN')">⚙️ Admin Bereich</a>
+<br><br>
+
+<!-- Benutzer Einstellungen (Email, Password) -->
+<a th:href="@{/userSettings}">📚 Benutzer Einstellungen </a>
+<br><br>
+
+
+
+<h1>Bewertete Bücher</h1>
+<table id="bookTable" class="table table-bordered">
+    <thead>
+    <tr>
+        <th>Buchname</th>
+        <th>Autor(en)</th>
+		<th>Sprache</th>
+        <th>Veröffentlichungsdatum</th>
+        <th>Anzahl Bewertungen</th>
+        <th>Ø Sterne</th>
+        <th>Ø Story-Qualität</th>
+        <th>Ø Cover</th>
+        <th>Ø Fetisch</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="book : ${avgBook}">
+        <td>
+            <a href="javascript:void(0)"
+               class="openCommentsModal"
+               th:data-id="${book.isbn}"
+               th:data-name="${book.bookName}">
+                <span th:text="${book.bookName}"></span>
+            </a>
+        </td>
+        <td th:text="${#strings.arrayJoin(book.author, ', ')}"></td>
+		<td th:text="${book.language}"></td>
+        <td th:text="${book.publishDate}"></td>
+        <td th:text="${book.numOfRating}"></td>
+        <td th:text="${#numbers.formatDecimal(book.avgStars, 1, 2)}"></td>
+        <td th:text="${#numbers.formatDecimal(book.avgStoryQuality, 1, 2)}"></td>
+        <td th:text="${#numbers.formatDecimal(book.avgWritingStyle, 1, 2)}"></td>
+        <td th:text="${#numbers.formatDecimal(book.avgOrginality, 1, 2)}"></td>
+    </tr>
+    </tbody>
+</table>
+
+<!-- Modal für Kommentare -->
+<div class="modal fade" id="commentsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="commentsModalLabel">Kommentare</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <ul id="commentsList" class="list-group"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS + Popper.js einbinden -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script th:inline="none">
+document.addEventListener("DOMContentLoaded", function () {
+
+    // ✅ DataTables für Sortierung aktivieren
+    $('#bookTable').DataTable({
+        paging: true,
+        searching: true,
+        order: [[4, 'desc']], // Standard: Sortierung nach Ø Sterne
+        language: {
+            url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/de-DE.json" // Deutsche Übersetzung
+        }
+    });
+
+    // ✅ Modal-Logik für Kommentare
+    document.querySelectorAll(".openCommentsModal").forEach(function (link) {
+        link.addEventListener("click", function () {
+            const bookIsbn = this.dataset.id;
+            const bookName = this.dataset.name;
+
+            // Modal-Titel setzen
+            document.getElementById("commentsModalLabel").innerText =
+                "Kommentare zu: " + bookName;
+
+            const commentsList = document.getElementById("commentsList");
+            commentsList.innerHTML =
+                "<li class='list-group-item'>Lade Kommentare...</li>";
+
+            // AJAX Request zum Backend
+            fetch("/mainpage/" + bookIsbn + "/comments")
+                .then(response => response.json())
+                .then(comments => {
+                    commentsList.innerHTML = "";
+
+                    if (!comments || comments.length === 0) {
+                        commentsList.innerHTML =
+                            "<li class='list-group-item'>Keine Kommentare vorhanden</li>";
+                        return;
+                    }
+
+                    // Kommentare hinzufügen (nur wenn nicht "No Comment")
+                    comments
+                        .filter(c => c.comment && c.comment !== "No Comment")
+                        .forEach(comment => {
+                            commentsList.innerHTML += `
+                                <li class="list-group-item">
+                                    <strong>${comment.userName}:</strong> "${comment.comment}"
+                                </li>
+                            `;
+                        });
+
+                    // Falls nach Filter keine Kommentare übrig sind
+                    if (commentsList.innerHTML.trim() === "") {
+                        commentsList.innerHTML =
+                            "<li class='list-group-item'>Keine Kommentare vorhanden</li>";
+                    }
+                })
+                .catch(error => {
+                    commentsList.innerHTML =
+                        "<li class='list-group-item text-danger'>Fehler beim Laden der Kommentare</li>";
+                    console.error("Fehler:", error);
+                });
+
+            // Modal öffnen
+            const modal = new bootstrap.Modal(document.getElementById("commentsModal"));
+            modal.show();
+        });
+    });
+});
+</script>
+
+
+</body>
+</html>

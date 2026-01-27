@@ -1,0 +1,41 @@
+
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+	<link rel="stylesheet" href="/css/general.css">
+    <title>Bücher auswählen</title>
+</head>
+<body>
+<h1>Bücher auswählen</h1>
+<form th:action="@{/collectionAddMultiple}" method="post">
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Auswählen</th>
+                <th>Buchname</th>
+				<th>Veröffentlichkeitsdatum</th>
+				<th>Sprache</th>
+				<th>Autoren</th>
+                <th>ISBN</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="book : ${books}">
+                <td><input type="checkbox" name="selectedBooks" th:value="${book.ISBN}"></td>
+                <td th:text="${book.bookName}"></td>
+				<td th:text="${book.publishDate}"></td>
+				<td th:text="${book.language}"></td>
+				<td> <span th:each="author, iterStat : ${book.authors}">
+				        <span th:text="${author}"></span>
+				        <span th:if="${!iterStat.last}">, </span>
+				    </span>
+				</td>
+                <td th:text="${book.ISBN}"></td>
+            </tr>
+        </tbody>
+    </table>
+    <button type="submit">Hinzufügen</button>
+</form>
+</body>
+</html>

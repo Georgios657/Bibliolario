@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+	
+	<link rel="stylesheet" href="/css/general.css">
+
+    <meta charset="UTF-8">
+    <title>Login</title>
+</head>
+<body>
+
+<h1>Login</h1>
+
+<div class="form-container">
+
+    <!-- Fehleranzeige von Spring Security -->
+    <p class="error" th:if="${param.error}">Ungültige Login-Daten!</p>
+
+    <!-- Logout-Bestätigung -->
+    <p class="logout" th:if="${param.logout}">Du wurdest ausgeloggt.</p>
+
+    <form th:action="@{/login}" method="post">
+
+        <label for="username">Benutzername oder Email</label>
+        <input id="username" name="username" type="text" placeholder="Benutzname eingeben" required>
+
+        <label for="password">Passwort</label>
+        <input id="password" name="password" type="password" placeholder="Passwort eingeben" required>
+
+        <button class="btn" type="submit">Login</button>
+    </form>
+	<br></br>
+	<a class="btn" th:href="@{/passwordReset}">Password vergessen?</a>		
+	<a class="btn" th:href="@{/register}">Registrieren</a>	
+
+</div>
+
+</body>
+</html>

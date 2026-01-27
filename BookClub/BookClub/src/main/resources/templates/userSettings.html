@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Benutzereinstellungen</title>
+	<link rel="stylesheet" href="/css/general.css">
+	
+	<!-- Bootstrap CSS -->
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+
+</head>
+<body>
+	<div th:replace="header :: mainHeader"></div>
+
+<h1>Benutzereinstellungen</h1>
+
+<div class="form-container">
+    <p th:if="${message}" th:text="${message}" class="success"></p>
+    <p th:if="${error}" th:text="${error}" class="error"></p>
+
+    <!-- Formular für E-Mail -->
+    <form th:action= "@{/settings/email}" method="post">
+        <label for="email">Neue E-Mail</label>
+        <input id="email" name="email" type="email" th:value="${currentEmail}" required>
+        <button type="submit">E-Mail ändern</button>
+    </form>
+
+    <!-- Formular für Passwort -->
+	<form th:action= " @{/settings/password}" method="post">
+   
+        <label for="oldPassword">Aktuelles Passwort</label>
+        <input id="oldPassword" name="oldPassword" type="password" required>
+		<div th:if="${errorMessage}" style="color:red;">
+		    <p th:text="${errorMessage}"></p>
+		</div>
+		
+        <label for="newPassword">Neues Passwort</label>
+        <input id="newPassword" name="newPassword" type="password" required>
+
+        <label for="confirmPassword">Neues Passwort bestätigen</label>
+        <input id="confirmPassword" name="confirmPassword" type="password" required>
+
+        <button type="submit">Passwort ändern</button>
+    </form>
+	
+	<td>
+	    <!-- Benutzer Löschen -->
+	    <form
+	          th:action="@{/settings/delete}"
+	          method="post"
+	          style="display:inline;"
+			   onsubmit="return confirm('Soll dieser Benutzer wirklich gelöscht werden?');">
+	        <button type="submit">Benutzer löschen</button>
+	    </form>
+	</td>
+	
+	<a class="btn" th:href="@{/mainpage}">Zurück zur Hauptseite</a>	
+</div>
+
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+
+</body>
+</html>

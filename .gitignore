@@ -1,0 +1,16 @@
+# Java/Eclipse
+target/
+bin/
+*.log
+*.class
+.settings/
+.project
+.classpath
+
+# Node/Vite/React
+node_modules/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db

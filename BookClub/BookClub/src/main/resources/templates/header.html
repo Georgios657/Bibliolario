@@ -1,0 +1,138 @@
+<!-- header.html -->
+<div th:fragment="mainHeader" id="mainHeader">
+  <!-- Navbar -->
+  <nav class="navbar navbar-light bg-light fixed-top shadow-sm">
+    <div class="container justify-content-between">
+      <!-- Logout -->
+      <form th:action="@{/logout}" method="post">
+        <button type="submit" class="btn btn-outline-danger">Logout</button>
+      </form>
+
+      <!-- Nachrichten -->
+      <button type="button"
+              class="btn btn-outline-primary"
+              id="hdr-inboxBtn"
+              data-bs-toggle="modal"
+              data-bs-target="#hdr-inboxModal">
+        Nachrichten
+      </button>
+    </div>
+  </nav>
+
+  <!-- Spacer für fixed-top -->
+  <div style="height: 60px;"></div>
+
+  <!-- Modal: Posteingang -->
+  <div class="modal fade" id="hdr-inboxModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Posteingang</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+        </div>
+        <div class="modal-body">
+          <ul class="list-group" id="hdr-inboxList">
+            <li class="list-group-item">Lade Nachrichten...</li>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Einzelne Nachricht -->
+  <div class="modal fade" id="hdr-messageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="hdr-messageSubject">Betreff</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+        </div>
+        <div class="modal-body" id="hdr-messageContent">Nachricht</div>
+        <div class="modal-body d-none" id="hdr-messageId">Id</div>
+        <div class="modal-footer">
+          <button id="hdr-declineBtn" class="btn btn-danger d-none">Nein</button>
+          <button id="hdr-acceptBtn" class="btn btn-success d-none">Ja</button>
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header JS -->
+  <script>
+    (function() {
+      const header = document.getElementById('mainHeader');
+      if (!header) return;
+
+      // Hilfsfunktion: CSRF Token
+      async function fetchWithCsrf(url, options = {}) {
+        const res = await fetch('/csrf-token', { credentials: 'same-origin' });
+        const data = await res.json();
+        options.headers = { ...(options.headers || {}), [data.headerName]: data.token, 'Content-Type': 'application/json' };
+        options.credentials = 'same-origin';
+        return fetch(url, options);
+      }
+
+      // Nachrichten laden
+      const inboxBtn = header.querySelector('#hdr-inboxBtn');
+      const inboxList = header.querySelector('#hdr-inboxList');
+
+      inboxBtn.addEventListener('click', () => {
+        inboxList.innerHTML = '<li class="list-group-item">Lade Nachrichten...</li>';
+
+        fetch('/messages/inbox', { method: 'GET' })
+          .then(res => res.json())
+          .then(messages => {
+            inboxList.innerHTML = '';
+            if (!messages || messages.length === 0) {
+              inboxList.innerHTML = '<li class="list-group-item">Keine Nachrichten vorhanden.</li>';
+              return;
+            }
+            messages.forEach(msg => {
+              const li = document.createElement('li');
+              li.className = 'list-group-item d-flex justify-content-between align-items-center';
+              li.innerHTML = `<span>#${msg.subject}<br/><small>Von: ${msg.sender} | ${new Date(msg.sentAt).toLocaleString()}</small></span>`;
+              li.onclick = () => showMessage(msg.id);
+              inboxList.appendChild(li);
+            });
+          })
+          .catch(err => {
+            inboxList.innerHTML = '<li class="list-group-item text-danger">Fehler beim Laden der Nachrichten</li>';
+            console.error(err);
+          });
+      });
+
+      // Nachricht anzeigen
+      window.showMessage = function(messageId) {
+        fetch(`/messages/${messageId}`, { method: 'GET' })
+          .then(res => res.json())
+          .then(msg => {
+            document.getElementById('hdr-messageSubject').innerText = msg.subject;
+            document.getElementById('hdr-messageContent').innerText = msg.content;
+            document.getElementById('hdr-messageId').innerText = msg.id;
+
+            const acceptBtn = document.getElementById('hdr-acceptBtn');
+            const declineBtn = document.getElementById('hdr-declineBtn');
+
+            acceptBtn.classList.add('d-none');
+            declineBtn.classList.add('d-none');
+
+            if (msg.invitation === true) {
+              acceptBtn.classList.remove('d-none');
+              declineBtn.classList.remove('d-none');
+
+              acceptBtn.onclick = () => fetchWithCsrf(`/messages/${msg.id}/accept`, { method: 'POST' }).then(r => r.ok && location.reload());
+              declineBtn.onclick = () => fetchWithCsrf(`/messages/${msg.id}/decline`, { method: 'POST' }).then(r => r.ok && location.reload());
+            }
+
+            if (window.bootstrap) {
+              new bootstrap.Modal(document.getElementById('hdr-messageModal')).show();
+            }
+          });
+      };
+    })();
+  </script>
+</div>
