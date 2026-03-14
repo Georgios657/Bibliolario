@@ -218,7 +218,7 @@ public class BookService {
 		)
 	//Probiere dreimal die Daten von GoogleBook zu erhalten
 	private JsonNode registerBookGoogle(String isbn) {
-		String apiKey = "AIzaSyD2OZ3u4z8CzuWbM5TGkE9m7u2Gf5i4ecA";
+		String apiKey = 
 		String url = "https://www.googleapis.com/books/v1/volumes?q=isbn:" + isbn+ "&key=" + apiKey;
 		ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
 		
