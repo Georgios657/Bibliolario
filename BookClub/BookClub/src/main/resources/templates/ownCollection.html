@@ -54,8 +54,8 @@
                     th:attr="data-id=${rating.id},
                              data-stars=${rating.stars},
                              data-story=${rating.storyQuality},
-                             data-writing=${rating.coverArt},
-                             data-originality=${rating.fetish},
+                             data-cover-art=${rating.coverArt},
+                             data-fetish=${rating.fetish},
 							 data-comment=${rating.comment ?: ''}">
                 Bewerten
             </button>
@@ -75,11 +75,11 @@
             <label>Sterne:</label>
             <input type="number" name="stars" min="1" max="5" required><br>
             <label>Story:</label>
-            <input type="number" name="storyQuality" min="1" max="10" required><br>
+            <input type="number" name="storyQuality" min="1" max="5" required><br>
             <label>Cover:</label>
-            <input type="number" name="writingStyle" min="1" max="10" required><br>
+            <input type="number" name="coverArt" min="1" max="5" required><br>
             <label>Fetisch-Faktor:</label>
-            <input type="number" name="originality" min="1" max="10" required><br>
+            <input type="number" name="fetish" min="1" max="5" required><br>
 			<label>Kommentar:</label>
 			<input type="text" name="comment"><br>
             <button type="submit">Speichern</button>
@@ -101,8 +101,8 @@
             // Vorbefüllen der Felder
             document.querySelector("input[name='stars']").value = button.dataset.stars;
             document.querySelector("input[name='storyQuality']").value = button.dataset.story;
-            document.querySelector("input[name='writingStyle']").value = button.dataset.writing;
-            document.querySelector("input[name='originality']").value = button.dataset.originality;
+            document.querySelector("input[name='coverArt']").value = button.dataset.coverArt;
+            document.querySelector("input[name='fetish']").value = button.dataset.fetish;
 			document.querySelector("input[name='comment']").value = button.dataset.comment;
 
             modal.style.display = "block";
