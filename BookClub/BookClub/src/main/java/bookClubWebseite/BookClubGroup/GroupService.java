@@ -3,6 +3,8 @@ package bookClubWebseite.BookClubGroup;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service;
 import bookClubWebseite.BookClubBook.Book;
 import bookClubWebseite.BookClubDTO.CreateGroupDTO;
 import bookClubWebseite.BookClubDTO.GroupDTO;
+import bookClubWebseite.BookClubDTO.JoinRequestDTOSelfInvite;
 import bookClubWebseite.BookClubReader.BookReader;
 import jakarta.transaction.Transactional;
 
@@ -94,17 +97,43 @@ public class GroupService {
 	}
 
 	public List<GroupDTO> findAllGroupsWithMembership(BookReader reader) {
-	    return groupRepository.findAll().stream()
-	        .map(g -> new GroupDTO(
-	            g.getId(),
-	            g.getName(),
-	            g.getAdmin().getUsername(),
-	            g.getMembers().size(),
-	            g.getBooklist().size(),
-	            g.getMembers().contains(reader),
-	            g.isPrivate()
-	        ))
-	        .toList();
+
+	    List<Group> groups = groupRepository.findAll();
+	    Long readerId = reader.getId();
+
+	    return groups.stream().map(group -> {
+
+	        boolean joined = group.getMembers()
+	                .stream()
+	                .anyMatch(m -> m.getId().equals(readerId));
+
+	        boolean joining = group.getJoinRequests()
+	                .stream()
+	                .anyMatch(r -> r.getId().equals(readerId));
+
+	        // 🔥 JoinRequests mappen (BookReader → DTO)
+	        Set<JoinRequestDTOSelfInvite> joinRequests = group.getJoinRequests()
+	                .stream()
+	                .map(user -> new JoinRequestDTOSelfInvite(
+	                        user.getId(),
+	                        user.getUsername()
+	                ))
+	                .collect(Collectors.toSet());
+
+	        // 🔥 DTO bauen
+	        return new GroupDTO(
+	                group.getId(),
+	                group.getName(),
+	                group.getAdmin().getUsername(),
+	                group.getMembers().size(),
+	                group.getBooklist().size(),
+	                joined,
+	                group.isPrivate(),
+	                joining,
+	                joinRequests
+	        );
+
+	    }).toList();
 	}
 
 	public void addBook(Long groupId, Book book) {
@@ -165,6 +194,31 @@ public class GroupService {
 	public void deleteGroup(Long groupId, BookReader currentUser) {
 		Group group = groupRepository.findById(groupId).get();
 		groupRepository.delete(group);
+		
+	}
+
+	public void requestJoin(Long groupId, BookReader reader) {
+		Group group = groupRepository.findById(groupId).get();
+		group.addRequest(reader);
+		System.out.println("Versuche Gruppe beizureten:"+group.getName());
+		groupRepository.save(group);
+		
+	}
+
+	public void acceptJoinRequest(Long groupId, BookReader joning) {
+		Group group = groupRepository.findById(groupId).get();
+		group.addNewMember(joning);
+		group.removeJoiningList(joning);
+		groupRepository.save(group);
+		
+	}
+
+	public void rejectJoinRequest(Long groupId, BookReader declined) {
+		Group group = groupRepository.findById(groupId).get();
+		group.removeJoiningList(declined);
+		groupRepository.save(group);
+		
+		// TODO Auto-generated method stub
 		
 	}
 

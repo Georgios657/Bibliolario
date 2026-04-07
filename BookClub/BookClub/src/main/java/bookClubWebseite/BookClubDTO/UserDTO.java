@@ -1,21 +1,23 @@
 package bookClubWebseite.BookClubDTO;
 
+import java.util.List;
+
+import bookClubWebseite.BookClubGroup.Group;
+import bookClubWebseite.BookClubRating.RatingClass;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class UserDTO {
     private Long id;
     private String name;
     private String email;
+    private String role;
 
-    public UserDTO(Long id, String username, String email) {
-        this.id = id;
-        this.name = username;
-        this.email = email;
-    }
 
-    // Getter & Setter
-    public Long getId() { return id; }
-    public String getName() { return name; }
-    public String getEmail() { return email; }
-    public void setId(Long id) { this.id = id; }
-    public void setUsername(String username) { this.name = username; }
-    public void setEmail(String email) { this.email = email; }
 }

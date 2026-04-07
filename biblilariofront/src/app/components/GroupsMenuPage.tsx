@@ -5,6 +5,7 @@ import { BookGroup } from '@/data/mockGroups';
 interface GroupsMenuPageProps {
   onBack: () => void;
   groups: BookGroup[];
+  currentUserId: string;
   onGroupClick: (groupId: string) => void;
   onJoinRequest: (groupId: string) => void;
   onCreateGroup: (name: string, description: string, isPrivate: boolean) => void;
@@ -13,12 +14,12 @@ interface GroupsMenuPageProps {
 export function GroupsMenuPage({
   onBack,
   groups,
+  currentUserId,
   onGroupClick,
   onJoinRequest,
   onCreateGroup,
 }: GroupsMenuPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [requestedGroups, setRequestedGroups] = useState<string[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
@@ -33,10 +34,22 @@ export function GroupsMenuPage({
       group.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleJoinRequest = (groupId: string) => {
-    setRequestedGroups([...requestedGroups, groupId]);
-    onJoinRequest(groupId);
-  };
+const handleJoinRequest = (groupId: string) => {
+  const token = localStorage.getItem('token');
+
+  fetch(`http://localhost:8080/${groupId}/join-request`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+    body: JSON.stringify({
+      userId: currentUserId,
+    }),
+  }).then(() => {
+    onJoinRequest(groupId); // 🔥 wichtig: Daten neu laden
+  });
+};
 
 const handleCreateGroup = () => {
   if (newGroupName.trim() && newGroupDescription.trim()) {
@@ -180,14 +193,14 @@ const handleCreateGroup = () => {
                     </div>
                     <button
                       onClick={() => handleJoinRequest(group.id)}
-                      disabled={requestedGroups.includes(group.id)}
+                      disabled={group.joining}
                       className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors font-medium ml-4 ${
-                        requestedGroups.includes(group.id)
+                        group.joining
                           ? 'bg-green-50 text-green-700 border border-green-200'
                           : 'bg-indigo-600 text-white hover:bg-indigo-700'
                       }`}
                     >
-                      {requestedGroups.includes(group.id) ? (
+                      {group.joining ? (
                         <>
                           <Check className="w-4 h-4" />
                           Anfrage gesendet

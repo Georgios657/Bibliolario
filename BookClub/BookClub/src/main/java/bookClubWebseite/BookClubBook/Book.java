@@ -13,8 +13,19 @@ import jakarta.persistence.OneToMany;
 
 @Entity
 public class Book {
-	public Book(String bookName, String bookPicURL, ArrayList<String> author, LocalDate  publishDate, String language) {
+	public Book(String bookName, String bookPicURL, List<String> author, LocalDate  publishDate, String language) {
 		super();
+		this.bookName = bookName;
+		this.bookPicURL = bookPicURL;
+		this.authors = new ArrayList<String>();
+		this.publishDate = publishDate;
+		this.ratings = new ArrayList<RatingClass>();
+		this.language = language;
+	}
+	
+	public Book(String isbn, String bookName, String bookPicURL, List<String> author, LocalDate  publishDate, String language) {
+		super();
+		this.ISBN = isbn;
 		this.bookName = bookName;
 		this.bookPicURL = bookPicURL;
 		this.authors = new ArrayList<String>();

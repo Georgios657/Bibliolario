@@ -20,6 +20,7 @@ interface GroupAdminPanelProps {
   members: GroupMember[];
   joinRequests: JoinRequest[];
   currentUserId: string;
+  currentUserName: string;
   onAcceptRequest: (requestId: string) => void;
   onRejectRequest: (requestId: string) => void;
   onRemoveMember: (memberId: string) => void;
@@ -38,6 +39,7 @@ export function GroupAdminPanel({
   members,
   joinRequests,
   currentUserId,
+  currentUserName,
   onAcceptRequest,
   onRejectRequest,
   onRemoveMember,
@@ -180,19 +182,10 @@ export function GroupAdminPanel({
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold text-gray-800">
-                            {request.userName}
-                          </h4>
-                          <span className="text-xs text-gray-500">
-                            {request.userEmail}
-                          </span>
+                        <h4 className="font-semibold text-gray-800">
+                          {request.name}
+                        </h4>
                         </div>
-                        <p className="text-sm text-gray-600 mb-2">
-                          {request.message}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Anfrage vom: {request.requestDate}
-                        </p>
                       </div>
                       <div className="flex gap-2 ml-4">
                         <button
@@ -223,7 +216,7 @@ export function GroupAdminPanel({
       Mitglieder ({members.length})
     </h3>
     {members
-      .filter((member) => member.name !== currentUserId) // <-- sich selbst ausblenden
+      .filter((member) => member.name !== currentUserName) // <-- sich selbst ausblenden
       .map((member) => (
         <div
           key={member.id}

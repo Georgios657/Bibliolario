@@ -12,6 +12,7 @@ import { MessagesModal } from '@/app/components/MessagesModal';
 import { SettingsModal } from '@/app/components/SettingsModal';
 import { Book } from '@/app/components/BookTable';
 import { mockBooks } from '@/data/mockBooks';
+import {BookGroup} from '@/data/mockGroups';
 import { ChatMessage, Message } from '@/data/mockMessages';
 
 type AuthView = 'login' | 'register' | 'main' | 'personal' | 'groups' | 'group-detail' | 'global-admin';
@@ -30,9 +31,82 @@ const formatDate = (dateString: string) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [showMessages, setShowMessages] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>([]); // Admin
+  const [invitableUsers, setInvitableUsers] = useState<User[]>([]); // Group
   const [role, setRole] = useState<string | null>(null);
   const [groupMessages, setGroupMessages] = useState<ChatMessage[]>([]);
+  const [bookSuggestions, setBookSuggestions] = useState<Book[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+const filteredUsers = users.filter(
+  (user) =>
+    user.role !== "DELETED" &&
+    (
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+);
+
+  const markGroupAsJoining = (groupId: string) => {
+  setGroups(prev =>
+    prev.map(group =>
+      group.id === groupId
+        ? { ...group, joining: true }
+        : group
+    )
+  );
+};
+
+useEffect(() => {
+  if (currentView !== 'global-admin') return;
+
+  const token = localStorage.getItem('token');
+
+  fetch('http://localhost:8080/users', {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  })
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error('Fehler beim Laden der User (Admin)');
+      }
+      return res.json();
+    })
+    .then((data: User[]) => {
+      console.log("Admin Users:", data);
+      setUsers(data); // 👈 HIER landen ALLE User für Admin Page
+    })
+    .catch((err) => {
+      console.error(err);
+    });
+
+     // 👉 BOOK SUGGESTIONS laden
+  fetch('http://localhost:8080/books/suggest/getAll', {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  })
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error('Fehler beim Laden der Book Suggestions');
+      }
+      return res.json();
+    })
+    .then((data) => {
+      console.log("Book Suggestions:", data);
+      setBookSuggestions(data); // 👉 brauchst du als State, falls noch nicht vorhanden
+    })
+    .catch((err) => {
+      console.error(err);
+    });
+
+
+}, [currentView]);
 
 useEffect(() => {
   // Läuft nur, wenn eine Gruppe ausgewählt ist
@@ -55,7 +129,7 @@ useEffect(() => {
     })
     .then((data) => {
       console.log("Invitable Users vom Backend:", data);
-      setUsers(data); // ersetzt die bestehende User-Liste
+      setInvitableUsers(data); // ersetzt die bestehende User-Liste
     })
     .catch(err => console.error(err));
 }, [selectedGroupId]); // 🔑 useEffect wird neu ausgelöst, wenn sich die Gruppe ändert
@@ -148,8 +222,8 @@ const unreadMessageCount = messages.filter(
 const inboxMessages = messages;
 
   const currentUserData = users.find((u) => u.id === currentUserId);
-  const isGlobalAdmin = currentUserData?.isGlobalAdmin || false;
-  const isSuperAdmin = currentUserData?.isSuperAdmin || false;
+    const isGlobalAdmin = role === "ADMIN";
+    const isSuperAdmin = role === "SUPERADMIN";
 
   const handleLogin = (userId: string, userName: string, role: string) => {
     setCurrentUserId(userId);
@@ -242,10 +316,15 @@ const handleGroupClick = async (groupId: number) => {
   }
 };
 
-  const handleJoinRequest = (groupId: string) => {
-    // In real app, send join request to backend
-    console.log('Join request sent for group:', groupId);
-  };
+const handleJoinRequest = (groupId: string) => {
+  setGroups(prev =>
+    prev.map(group =>
+      group.id === groupId
+        ? { ...group, joining: true }
+        : group
+    )
+  );
+};
 
 const handleLeaveGroup = async (groupId: string) => {
   const token = localStorage.getItem("token");
@@ -282,47 +361,86 @@ const handleLeaveGroup = async (groupId: string) => {
   }
 };
 
-  const handleAcceptJoinRequest = (groupId: string, requestId: string) => {
-    setGroups(
-      groups.map((g) => {
-        if (g.id === groupId) {
-          const request = g.joinRequests?.find((r) => r.id === requestId);
-          if (request) {
-            return {
-              ...g,
-              members: [
-                ...(g.members || []),
-                {
-                  id: request.userId,
-                  name: request.userName,
-                  email: request.userEmail,
-                  joinedDate: new Date().toLocaleDateString('de-DE'),
-                  isAdmin: false,
-                },
-              ],
-              joinRequests: g.joinRequests?.filter((r) => r.id !== requestId),
-              memberCount: g.memberCount + 1,
-            };
-          }
-        }
-        return g;
-      })
-    );
-  };
+const handleAcceptJoinRequest = (groupId: string, requestId: string) => {
+  const token = localStorage.getItem('token');
 
-  const handleRejectJoinRequest = (groupId: string, requestId: string) => {
-    setGroups(
-      groups.map((g) => {
-        if (g.id === groupId) {
+  // 🔥 1. Optimistic UI Update (sofort im Frontend)
+  setGroups(
+    groups.map((g) => {
+      if (g.id === groupId) {
+        const request = g.joinRequests?.find((r) => r.id === requestId);
+        if (request) {
           return {
             ...g,
+            members: [
+              ...(g.members || []),
+              {
+                id: request.id, // 👈 angepasst (du hast kein userId mehr)
+                name: request.name,
+                email: request.email,
+                joinedDate: new Date().toLocaleDateString('de-DE'),
+                isAdmin: false,
+              },
+            ],
             joinRequests: g.joinRequests?.filter((r) => r.id !== requestId),
+            memberCount: g.memberCount + 1,
           };
         }
-        return g;
-      })
-    );
-  };
+      }
+      return g;
+    })
+  );
+
+  // 🔥 2. API Call
+  fetch(`http://localhost:8080/groups/${groupId}/join-requests/${requestId}/accept`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  }).catch(() => {
+    // ⚠️ Optional: rollback bei Fehler
+    console.error("Fehler beim Annehmen der Anfrage");
+
+    // einfacher rollback → neu laden wäre sauberer
+  });
+};
+
+const handleRejectJoinRequest = (groupId: string, requestId: string) => {
+  const token = localStorage.getItem('token');
+
+  // 🔥 1. Optimistic UI Update
+  setGroups(prev =>
+    prev.map((g) => {
+      if (g.id === groupId) {
+        return {
+          ...g,
+          joinRequests: g.joinRequests?.filter((r) => r.id !== requestId),
+        };
+      }
+      return g;
+    })
+  );
+
+  // 🔥 2. API Call
+  fetch(`http://localhost:8080/groups/${groupId}/join-requests/${requestId}/reject`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: token ? `Bearer ${token}` : '',
+    },
+  })
+  .then(res => {
+    if (!res.ok) {
+      throw new Error("Fehler beim Ablehnen");
+    }
+  })
+  .catch(() => {
+    console.error("Fehler beim Ablehnen der Anfrage");
+
+    // ⚠️ Optional: rollback oder neu laden
+  });
+};
 
 const handleRemoveMember = async (groupId: string, memberId: string) => {
   const token = localStorage.getItem("token");
@@ -462,31 +580,121 @@ const handleSendMessage = (message: Omit<Message, 'id' | 'timestamp' | 'isRead'>
   }).catch(err => console.error("Fehler beim Markieren:", err));
 };
 
-  const handleToggleBlock = (userId: string) => {
-    setUsers(
-      users.map((u) =>
-        u.id === userId ? { ...u, isBlocked: !u.isBlocked } : u
-      )
+const handleToggleBlock = async (userId: string) => {
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      `http://localhost:8080/users/blocking/${userId}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
     );
+
+    if (!res.ok) throw new Error("Fehler");
+
+    const data = await res.json();
+    console.log("API response:", data);
+
+    // 👇 HIER VORHER
+    console.log("BEFORE UPDATE");
+
+    setUsers((prev) => {
+      const updated = prev.map((u) =>
+        String(u.id) === String(userId)
+          ? { ...u, role: u.role === "BLOCKED" ? "USER" : "BLOCKED" }
+          : u
+      );
+
+      // 👇 DAS IST DER WICHTIGE DEBUG POINT
+      console.log("AFTER MAP (NEW STATE):", updated);
+
+      return updated;
+    });
+
+  } catch (err) {
+    console.error(err);
+  }
+};
+
+  const handleToggleAdmin = async (userId: string) => {
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(
+      `http://localhost:8080/users/admin/${userId}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!res.ok) throw new Error("Fehler");
+
+    const data = await res.json();
+    console.log("API response:", data);
+
+    // 👇 HIER VORHER
+    console.log("BEFORE UPDATE");
+
+    setUsers((prev) => {
+      const updated = prev.map((u) =>
+        String(u.id) === String(userId)
+          ? { ...u, role: u.role === "ADMIN" ? "USER" : "ADMIN" }
+          : u
+      );
+
+      // 👇 DAS IST DER WICHTIGE DEBUG POINT
+      console.log("AFTER MAP (NEW STATE):", updated);
+
+      return updated;
+    });
+
+  } catch (err) {
+    console.error(err);
+  }
   };
 
-  const handleToggleAdmin = (userId: string) => {
-    setUsers(
-      users.map((u) =>
-        u.id === userId ? { ...u, isGlobalAdmin: !u.isGlobalAdmin } : u
-      )
-    );
-  };
+const handleDeleteUser = async (userId: string) => {
+  const token = localStorage.getItem("token");
 
-  const handleDeleteUser = (userId: string) => {
+  try {
+    const response = await fetch(
+      `http://localhost:8080/users/admin/${userId}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      alert(err.message || "Fehler");
+      return;
+    }
+
+    // 🔥 Optimistic UI update
     setUsers(users.filter((u) => u.id !== userId));
-  };
 
-  const handleAddBook = (bookData: any) => {
-    console.log('Adding book to database:', bookData);
-    // In real app, add to backend
-    alert(`Buch "${bookData.title}" wurde zur Datenbank hinzugefügt!`);
-  };
+    alert("Account erfolgreich gelöscht (Soft Delete).");
+  } catch (err) {
+    console.error(err);
+    alert("Serverfehler");
+  }
+};
+
+const handleAddBook = (bookData: any) => {
+
+};
+
+
 const handleCreateGroup = async (name: string, description: string, isPrivate: boolean) => {
   try {
     const token = localStorage.getItem('token');
@@ -561,24 +769,68 @@ const handleCreateGroup = async (name: string, description: string, isPrivate: b
     });
   };
 
-  const handleApproveSuggestion = (messageId: string, bookData: any) => {
-    // Mark suggestion as approved and add book
-    setMessages(
-      messages.map((m) =>
-        m.id === messageId ? { ...m, status: 'approved' as const } : m
-      )
-    );
-    handleAddBook(bookData);
+  const handleApproveSuggestion = (bookData: any) => {
+  console.log('Adding book to database:', bookData);
+
+  const token = localStorage.getItem("token"); // falls du JWT nutzt
+  const isbn = bookData.isbn; // wichtig: muss existieren!
+
+  fetch(`http://localhost:8080/books/suggest/register/${isbn}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error("Fehler beim Übernehmen der Suggestion");
+      }
+      return res.text(); // oder .json() je nach Backend
+    })
+    .then((data) => {
+      console.log("Erfolg:", data);
+      alert(`Buch "${bookData.title}" wurde zur Datenbank hinzugefügt!`);
+
+      // 👉 UI aktualisieren (sehr wichtig!)
+      setBookSuggestions((prev: any[]) =>
+        prev.filter((b) => b.isbn !== isbn)
+      );
+    })
+    .catch((err) => {
+      console.error(err);
+      alert("Fehler beim Hinzufügen des Buchs");
+    });
   };
 
-  const handleRejectSuggestion = (messageId: string) => {
-    // Mark suggestion as rejected
-    setMessages(
-      messages.map((m) =>
-        m.id === messageId ? { ...m, status: 'rejected' as const } : m
-      )
-    );
-  };
+const handleRejectSuggestion = (bookData: any) => {
+  const token = localStorage.getItem("token");
+  const isbn = bookData.isbn;
+
+  fetch(`http://localhost:8080/books/suggest/register/${isbn}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error("Fehler beim Löschen der Suggestion");
+      }
+      return res.text(); // oder .json()
+    })
+    .then((data) => {
+      console.log("Gelöscht:", data);
+
+      // 👉 UI aktualisieren (sehr wichtig!)
+      setBookSuggestions((prev: any[]) =>
+        prev.filter((b) => b.isbn !== isbn)
+      );
+    })
+    .catch((err) => {
+      console.error(err);
+      alert("Fehler beim Löschen der Suggestion");
+    });
+};
 
   const handleChangeEmail = (newEmail: string) => {
     // In real app, update email in backend
@@ -678,7 +930,6 @@ const handleInviteUser = async (groupId: string, userId: string) => {
   }
 };
 
-  const bookSuggestions = messages.filter((m) => m.type === 'book-suggestion');
 
   const selectedGroup = selectedGroupId
     ? groups.find((g) => g.id === selectedGroupId)
@@ -739,6 +990,7 @@ const handleInviteUser = async (groupId: string, userId: string) => {
         <GroupsMenuPage
           onBack={() => setCurrentView('main')}
           groups={groups}
+          currentUserId={currentUserId}
           onGroupClick={handleGroupClick}
           onJoinRequest={handleJoinRequest}
           onCreateGroup={handleCreateGroup}
@@ -761,7 +1013,7 @@ const handleInviteUser = async (groupId: string, userId: string) => {
           onAddBookToGroup={(bookData) => handleAddBookToGroup(selectedGroup.id, bookData)}
           onTogglePrivacy={handleTogglePrivacy}
           onInviteUser={handleInviteUser}
-          availableUsers={users}
+          availableUsers={invitableUsers}
         />
       )}
       
@@ -778,6 +1030,9 @@ const handleInviteUser = async (groupId: string, userId: string) => {
           bookSuggestions={bookSuggestions}
           onApproveSuggestion={handleApproveSuggestion}
           onRejectSuggestion={handleRejectSuggestion}
+            filteredUsers={filteredUsers}
+           searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
           onOpenSettings={() => setShowSettings(true)}
         />
       )}

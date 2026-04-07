@@ -36,12 +36,21 @@ public class Group {
     private BookReader admin;
 
     @ManyToMany
-    @JoinTable(
+    @JoinTable(	
         name = "group_members",
         joinColumns = @JoinColumn(name = "group_id"),
         inverseJoinColumns = @JoinColumn(name = "reader_id")
     )
     private Set<BookReader> members = new HashSet<>();
+    
+    
+    @ManyToMany
+    @JoinTable(
+        name = "group_join_requests",
+        joinColumns = @JoinColumn(name = "group_id"),
+        inverseJoinColumns = @JoinColumn(name = "reader_id")
+    )
+    private Set<BookReader> joinRequests = new HashSet<>();    
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -70,4 +79,14 @@ public class Group {
     public void addBook(Book book) {
         booklist.add(book);
     }
+
+	public void addRequest(BookReader reader) {
+		joinRequests.add(reader);
+		
+	}
+
+	public void removeJoiningList(BookReader joning) {
+		joinRequests.remove(joning);
+		
+	}
 }

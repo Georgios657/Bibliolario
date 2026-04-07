@@ -5,10 +5,11 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import io.jsonwebtoken.io.IOException;
+import java.io.IOException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,30 +24,51 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final @Lazy UserDetailsService userDetailsService;
 
 
+		@Override
+		protected boolean shouldNotFilter(HttpServletRequest request) {
+		    String path = request.getServletPath();
+		    return path.startsWith("/ws");
+		}
+
 
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain filterChain
-    ) throws ServletException, IOException, java.io.IOException {
+    ) throws ServletException, IOException {
 
-        final String authHeader = request.getHeader("Authorization");
+        String path = request.getRequestURI();
 
-        // Kein Token → weiter
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        // 1. WebSocket komplett ignorieren (WICHTIG)
+        if (isWebSocketRequest(path)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = authHeader.substring(7);
-        String username = jwtService.extractUsername(token);
+        // 2. Token extrahieren
+        String authHeader = request.getHeader("Authorization");
 
-        if (username != null &&
-            SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (!hasBearerToken(authHeader)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
-            UserDetails userDetails =
-                    userDetailsService.loadUserByUsername(username);
+        String token = extractToken(authHeader);
+
+        // 3. Username aus Token holen
+        String username;
+        try {
+            username = jwtService.extractUsername(token);
+        } catch (Exception e) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // 4. SecurityContext nur setzen wenn nötig
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
             if (jwtService.isTokenValid(token, userDetails)) {
 
@@ -57,11 +79,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 userDetails.getAuthorities()
                         );
 
-                SecurityContextHolder.getContext()
-                        .setAuthentication(authToken);
+                authToken.setDetails(
+                        new WebAuthenticationDetailsSource().buildDetails(request)
+                );
+
+                SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }
 
         filterChain.doFilter(request, response);
+    }
+    
+    private boolean isWebSocketRequest(String path) {
+        return path.startsWith("/ws");
+    }
+
+    private boolean hasBearerToken(String header) {
+        return header != null && header.startsWith("Bearer ");
+    }
+
+    private String extractToken(String header) {
+        return header.substring(7);
     }
 }

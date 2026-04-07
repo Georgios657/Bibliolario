@@ -41,9 +41,7 @@ public class BookReaderService {
     	return bookReaderRepository.findByUsername(username);
     }
     
-    public List<BookReader> findAllUsers(){ //Gibt alle benutzer zurück die nicht placeholder sind
-    	 return bookReaderRepository.findAllActiveUsers();
-    }
+
 
 	public void promoteToAdmin(Long id) { //Setzt Benutzer auf Admin
 		  BookReader user = bookReaderRepository.findById(id).orElseThrow();
@@ -164,8 +162,9 @@ public class BookReaderService {
 	    user.setPassword(passwordEncoder.encode(randomPassword));
 
 	    // Name und Email anonymisieren
-	    user.setUsername("deleted");
+	    user.setUsername("deleted" + System.currentTimeMillis());
 	    user.setEmail("deleted_" + System.currentTimeMillis() + "@deleted.local");
+	    user.setRole("DELETED");
 
 	    bookReaderRepository.save(user);
 	}
@@ -173,6 +172,41 @@ public class BookReaderService {
 	@Transactional
 	public List<UserDTO> getAllInvitable(BookReader reader, Long groupId) {
 	    return bookReaderRepository.findInvitableUsers(reader.getId(), groupId);
+	}
+	
+    public List<UserDTO> findAllUsers(){ //Gibt alle benutzer zurück die nicht placeholder sind
+   	 return bookReaderRepository.findAllUsersForAdmin();
+   }
+
+	public void blockUnblock(Long id) {
+		BookReader reader = bookReaderRepository.findById(id)
+			    .orElseThrow(() -> new RuntimeException("User nicht gefunden"));
+		System.out.println("Blocking:"+reader.getUsername());
+		if (!"BLOCKED".equals(reader.getRole())) {
+			reader.setRole("BLOCKED");
+		}
+		else {
+			reader.setRole("USER");
+		}
+		bookReaderRepository.save(reader);
+		
+	}
+
+	public void adminUnadmin(Long id) {
+		BookReader reader = bookReaderRepository.findById(id)
+			    .orElseThrow(() -> new RuntimeException("User nicht gefunden"));
+		if (reader.getRole().equals("BLOCKED")) {
+			 new RuntimeException("User gesperrt");
+		}
+		System.out.println("Admin:"+reader.getUsername());
+		if (!"ADMIN".equals(reader.getRole())) {
+			reader.setRole("ADMIN");
+		}
+		else {
+			reader.setRole("USER");
+		}
+		bookReaderRepository.save(reader);
+		
 	}
 
 	

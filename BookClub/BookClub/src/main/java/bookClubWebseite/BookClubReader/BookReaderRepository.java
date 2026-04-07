@@ -26,7 +26,11 @@ public interface BookReaderRepository extends JpaRepository<BookReader, Long> {
 	 
 	 boolean existsByEmail(String email);
 	 
-	 @Query("SELECT new bookClubWebseite.BookClubDTO.UserDTO(u.id, u.username, u.email) " +
+	 @Query("SELECT new bookClubWebseite.BookClubDTO.UserDTO(u.id, u.username, u.email, u.role) " +
+		       "FROM BookReader u")
+		List<UserDTO> findAllUsersForAdmin();
+	 
+	 @Query("SELECT new bookClubWebseite.BookClubDTO.UserDTO(u.id, u.username, u.email, u.role) " +
 		       "FROM BookReader u " +
 		       "WHERE u.id <> :currentUserId " +
 		       "AND u.role <> 'BLOCKED' " +

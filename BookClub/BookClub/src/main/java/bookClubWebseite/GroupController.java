@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -33,6 +36,8 @@ import bookClubWebseite.BookClubDTO.GroupDetailDTO;
 import bookClubWebseite.BookClubDTO.GroupDetailDTO.BookDTO;
 import bookClubWebseite.BookClubDTO.GroupDetailDTO.MemberDTO;
 import bookClubWebseite.BookClubDTO.GroupOverviewDTO;
+import bookClubWebseite.BookClubDTO.JoinRequestDTOSelfInvite;
+import bookClubWebseite.BookClubDTO.JoinRequestDto;
 import bookClubWebseite.BookClubDTO.RatingRequest;
 import bookClubWebseite.BookClubGroup.Group;
 import bookClubWebseite.BookClubGroup.GroupService;
@@ -164,7 +169,19 @@ public class GroupController {
 	    return new GroupOverviewDTO(myGroups, availableGroups);
 	}
 	
-	
+	//Join Request for a Group
+    @PostMapping("/{groupId}/join-request")
+    public ResponseEntity<Void> requestJoinGroup(
+            @PathVariable Long groupId,
+            @RequestBody JoinRequestDto dto,
+            Authentication authentication
+    ) {
+
+        groupService.requestJoin(groupId, bookReaderService.findByUsername(authentication.getName()));
+
+        return ResponseEntity.ok().build();
+    }
+    
 	@PostMapping("/{groupId}/books")
 	public ResponseEntity<GroupDetailDTO.BookDTO> addBookByIsbn(
 	        @PathVariable Long groupId,
@@ -186,6 +203,33 @@ public class GroupController {
 	    return ResponseEntity.ok(addedBook);
 	}
 	
+	//Handles accepted invite from admin
+	@PostMapping("/groups/{groupId}/join-requests/{requestId}/accept")
+	public ResponseEntity<Void> acceptJoinRequest(
+	        @PathVariable Long groupId,
+	        @PathVariable Long requestId,
+	        Authentication authentication) {
+		
+		BookReader joning = bookReaderService.findById(requestId);
+
+	    groupService.acceptJoinRequest(groupId, joning);
+
+	    return ResponseEntity.ok().build();
+	}
+	
+	//Handle deciline from admin
+	@PostMapping("/groups/{groupId}/join-requests/{requestId}/reject")
+	public ResponseEntity<Void> rejectJoinRequest(
+	        @PathVariable Long groupId,
+	        @PathVariable Long requestId,
+	        Authentication authentication) {
+		
+		BookReader declined = bookReaderService.findById(requestId);
+
+	    groupService.rejectJoinRequest(groupId, declined);
+
+	    return ResponseEntity.ok().build();
+	}
     
 	@GetMapping("/groups/{id}")
 	public ResponseEntity<GroupDetailDTO> getGroupById(@PathVariable Long id, Authentication authentication) {
@@ -200,7 +244,6 @@ public class GroupController {
 	            dto.setId(group.getId());
 	            dto.setName(group.getName());
 	            dto.setDescription(group.getDescription());
-
 	            // Admin
 	            BookReader admin = group.getAdmin();
 	            dto.setAdmin(new MemberDTO(
@@ -220,6 +263,16 @@ public class GroupController {
 	                    .toList();
 
 	            dto.setMembers(memberDTOs);
+	            
+	            // Join Reqpuest
+	            List<JoinRequestDTOSelfInvite> selfInvite = group.getJoinRequests().stream()
+	            		.map(m -> new JoinRequestDTOSelfInvite(
+	            				m.getId(),
+	            				m.getUsername()
+	            				))
+	            				.toList();
+	            
+	            dto.setJoinRequests(selfInvite);
 
 	            // 📚 BOOKS MIT RATINGS
 	            List<GroupBookDTO> bookDTOs = group.getBooklist().stream()
@@ -307,19 +360,32 @@ public class GroupController {
 
 	    String username = authentication.getName();
 	    BookReader bookReader = bookReaderService.findByUsername(username);
+
 	    Group newGroup = groupService.createGroup(dto, bookReader);
 
+	    // 🔥 JoinRequests mappen (BookReader → DTO)
+	    Set<JoinRequestDTOSelfInvite> joinRequests = newGroup.getJoinRequests()
+	            .stream()
+	            .map(user -> new JoinRequestDTOSelfInvite(
+	                    user.getId(),
+	                    user.getUsername()
+	            ))
+	            .collect(Collectors.toSet());
+
+	    // 🔥 DTO korrekt bauen
 	    GroupDTO groupDTO = new GroupDTO(
 	            newGroup.getId(),
 	            newGroup.getName(),
 	            newGroup.getAdmin().getUsername(),
 	            newGroup.getMembers().size(),
 	            newGroup.getBooklist().size(),
-	            newGroup.isPrivate(),
-	            true // Admin ist automatisch Mitglied
+	            true,                  // joined (Admin ist Mitglied)
+	            newGroup.isPrivate(),  // isPrivate
+	            false,                 // joining
+	            joinRequests
 	    );
-	    
-	    System.out.println("Gruppe angelegt mit: Privat:"+newGroup.isPrivate());
+
+	    System.out.println("Gruppe angelegt mit: Privat: " + newGroup.isPrivate());
 
 	    return ResponseEntity.ok(groupDTO);
 	}

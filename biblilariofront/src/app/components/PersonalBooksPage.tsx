@@ -35,7 +35,7 @@ export function PersonalBooksPage({ onBack, userName, allBooks, onSuggestBook }:
   const [isSearchingSuggest, setIsSearchingSuggest] = useState(false);
   const [suggestResult, setSuggestResult] = useState<any>(null);
   const [personalBooks, setPersonalBooks] = useState<PersonalBook[]>([]);
-
+const [popupMessage, setPopupMessage] = useState<string | null>(null);
   // Load personal books
   useEffect(() => {
     const fetchPersonalBooks = async () => {
@@ -119,28 +119,43 @@ export function PersonalBooksPage({ onBack, userName, allBooks, onSuggestBook }:
     setPersonalBooks(personalBooks.filter((b) => b.bookId !== bookId));
   };
 
-  const handleSuggestBook = () => {
-    setIsSearchingSuggest(true);
-    // Mock ISBN Suche
-    setTimeout(() => {
-      const mockBookData = {
-        isbn: isbnSuggest,
-        title: isbnSuggest === '9783518368541' ? 'Der Prozess' : 
-               isbnSuggest === '9783551354013' ? 'Harry Potter und die Kammer des Schreckens' :
-               'Unbekanntes Buch (Mock)',
-        authors: isbnSuggest === '9783518368541' ? ['Franz Kafka'] :
-                 isbnSuggest === '9783551354013' ? ['J.K. Rowling'] :
-                 ['Unbekannter Autor'],
-        publishedDate: isbnSuggest === '9783518368541' ? '1925' :
-                       isbnSuggest === '9783551354013' ? '1998' :
-                       '2000',
-        language: 'Deutsch',
-        description: 'Dies ist eine Mock-Beschreibung des Buches.',
-      };
-      setSuggestResult(mockBookData);
+const handleSuggestBook = () => {
+  const token = localStorage.getItem('token');
+
+  setIsSearchingSuggest(true);
+
+  fetch(`http://localhost:8080/books/suggest`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      isbn: isbnSuggest,
+    }),
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Fehler beim Vorschlagen");
+      }
+
+      return res.json().catch(() => null);
+    })
+    .then(() => {
+      setSuggestResult(null);
+      setIsbnSuggest("");
+      setPopupMessage("✅ Buchvorschlag erfolgreich gesendet");
+    })
+    .catch((err) => {
+      console.error(err);
+      setPopupMessage("❌ " + err.message);
+      setSuggestResult(null);
+    })
+    .finally(() => {
       setIsSearchingSuggest(false);
-    }, 1000);
-  };
+    });
+};
 
   const renderStars = (rating: number, onChange?: (value: number) => void) => {
     return (
@@ -157,7 +172,22 @@ export function PersonalBooksPage({ onBack, userName, allBooks, onSuggestBook }:
   };
 
   return (
+    
     <div className="min-h-screen bg-gray-50">
+      {popupMessage && (
+  <div className="fixed top-5 right-5 z-50 bg-black text-white px-4 py-3 rounded-md shadow-lg">
+    <div className="flex items-center gap-3">
+      <span>{popupMessage}</span>
+
+      <button
+        onClick={() => setPopupMessage(null)}
+        className="font-bold ml-2"
+      >
+        ✕
+      </button>
+    </div>
+  </div>
+)}
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4">

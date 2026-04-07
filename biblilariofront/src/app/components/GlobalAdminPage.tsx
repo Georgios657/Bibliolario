@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Search, Shield, Ban, Check, UserCog, UserMinus, UserPlus, BookPlus, LogOut, X, Settings } from 'lucide-react';
 import { User } from '@/data/mockUsers';
-import { Message } from '@/data/mockMessages';
+import { Book } from '@/app/components/BookTable';
 
 interface GlobalAdminPageProps {
   onBack?: () => void;
@@ -12,10 +12,13 @@ interface GlobalAdminPageProps {
   onToggleBlock: (userId: string) => void;
   onToggleAdmin: (userId: string) => void;
   onDeleteUser: (userId: string) => void;
-  onAddBook: (bookData: any) => void;
-  bookSuggestions: Message[];
-  onApproveSuggestion: (messageId: string, bookData: any) => void;
-  onRejectSuggestion: (messageId: string) => void;
+  onAddBook: (Book: any) => void;
+  bookSuggestions: Book[];
+  onApproveSuggestion: (bookData: any) => void;
+  onRejectSuggestion: (bookDate: any) => void;
+  filteredUsers: User[];
+  searchQuery: string;
+  setSearchQuery: (value: string) => void;
   onOpenSettings: () => void;
 }
 
@@ -32,49 +35,50 @@ export function GlobalAdminPage({
   bookSuggestions,
   onApproveSuggestion,
   onRejectSuggestion,
+  filteredUsers,
+  searchQuery,
+  setSearchQuery,
   onOpenSettings,
 }: GlobalAdminPageProps) {
   const [activeTab, setActiveTab] = useState<'users' | 'books'>('users');
-  const [searchQuery, setSearchQuery] = useState('');
   const [isbnSearch, setIsbnSearch] = useState('');
   const [bookSearchResult, setBookSearchResult] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
-  const pendingSuggestions = bookSuggestions.filter((m) => m.status === 'pending');
+const handleIsbnSearch = async () => {
+  try {
+    const token = localStorage.getItem("token");
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    // 👉 hier musst du deine ISBN herbekommen (z. B. aus einem Input-State)
+    const isbn = isbnSearch; // z.B. useState
 
-  const handleIsbnSearch = async () => {
-    setIsSearching(true);
-    // Mock ISBN Suche - simuliert API-Aufruf
-    setTimeout(() => {
-      const mockBookData = {
-        isbn: isbnSearch,
-        title: isbnSearch === '9783518368541' ? 'Der Prozess' : 
-               isbnSearch === '9783551354013' ? 'Harry Potter und die Kammer des Schreckens' :
-               isbnSearch === '9783257228007' ? 'Das Parfum' :
-               'Unbekanntes Buch (Mock)',
-        authors: isbnSearch === '9783518368541' ? ['Franz Kafka'] :
-                 isbnSearch === '9783551354013' ? ['J.K. Rowling'] :
-                 isbnSearch === '9783257228007' ? ['Patrick Süskind'] :
-                 ['Unbekannter Autor'],
-        publishedDate: isbnSearch === '9783518368541' ? '1925' :
-                       isbnSearch === '9783551354013' ? '1998' :
-                       isbnSearch === '9783257228007' ? '1985' :
-                       '2000',
-        language: 'Deutsch',
-        description: 'Dies ist eine Mock-Beschreibung des Buches.',
-        coverUrl: '',
-      };
-      setBookSearchResult(mockBookData);
-      setIsSearching(false);
-    }, 1000);
-  };
+    if (!isbn) {
+      alert("Bitte ISBN eingeben");
+      return;
+    }
+
+    const res = await fetch(`http://localhost:8080/books/add/${isbn}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error("Fehler beim Hinzufügen des Buchs");
+    }
+
+    const data = await res.text(); // oder .json()
+    console.log("Erfolg:", data);
+
+    alert("Buch wurde erfolgreich hinzugefügt!");
+
+  } catch (err) {
+    console.error(err);
+    alert("Fehler beim Hinzufügen des Buchs");
+  }
+};
 
   const handleAddBook = () => {
     if (bookSearchResult) {
@@ -182,7 +186,7 @@ export function GlobalAdminPage({
                 <div
                   key={user.id}
                   className={`p-4 border rounded-lg ${
-                    user.isBlocked
+                    user.role === "BLOCKED"
                       ? 'bg-red-50 border-red-200'
                       : 'border-gray-200 hover:border-gray-300'
                   } transition-colors`}
@@ -190,44 +194,46 @@ export function GlobalAdminPage({
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-gray-800">
-                          {user.name}
-                        </h3>
-                        {user.isGlobalAdmin && (
-                          <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full flex items-center gap-1">
-                            <Shield className="w-3 h-3" />
-                            Admin
-                          </span>
-                        )}
-                        {user.isSuperAdmin && (
-                          <span className="px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded-full flex items-center gap-1">
-                            <Shield className="w-3 h-3" />
-                            Superadmin
-                          </span>
-                        )}
-                        {user.isBlocked && (
-                          <span className="px-2 py-1 bg-red-600 text-white text-xs font-medium rounded-full flex items-center gap-1">
-                            <Ban className="w-3 h-3" />
-                            Gesperrt
-                          </span>
-                        )}
-                        {user.id === currentUserId && (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
-                            Sie
-                          </span>
-                        )}
-                      </div>
+                          <h3 className="font-semibold text-gray-800">
+                            {user.name}
+                          </h3>
+
+                          {/* 👉 Role Badges */}
+                          {user.role === "ADMIN" && (
+                            <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-full flex items-center gap-1">
+                              <Shield className="w-3 h-3" />
+                              Admin
+                            </span>
+                          )}
+
+                          {user.role === "SUPERADMIN" && (
+                            <span className="px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                              <Shield className="w-3 h-3" />
+                              Superadmin
+                            </span>
+                          )}
+
+                          {user.role === "BLOCKED" && (
+                            <span className="px-2 py-1 bg-red-600 text-white text-xs font-medium rounded-full flex items-center gap-1">
+                              <Ban className="w-3 h-3" />
+                              Gesperrt
+                            </span>
+                          )}
+
+                          {/* 👉 "Sie" zusätzlich */}
+                          {String(user.id) === currentUserId && (
+                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                              Sie
+                            </span>
+                          )}
+                        </div>
                       <p className="text-sm text-gray-600 mb-1">{user.email}</p>
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span>Registriert: {user.registeredDate}</span>
-                        <span>Letzter Login: {user.lastLogin}</span>
-                      </div>
                     </div>
 
-                    {user.id !== currentUserId && (
+                    {String(user.id) !== currentUserId && (
                       <div className="flex gap-2 ml-4">
-                        {!user.isSuperAdmin && (
-                          user.isBlocked ? (
+                        {user.role !== "SUPERADMIN" && (
+                          user.role === "BLOCKED" ? (
                             <button
                               onClick={() => onToggleBlock(user.id)}
                               className="flex items-center gap-1 px-3 py-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-md transition-colors text-sm font-medium"
@@ -248,8 +254,10 @@ export function GlobalAdminPage({
                           )
                         )}
 
-                        {!user.isSuperAdmin && (
-                          user.isGlobalAdmin ? (
+                        {user.role !== "SUPERADMIN" && 
+                        user.role !== "BLOCKED" &&
+                        (
+                          user.role === "ADMIN" ? (
                             <button
                               onClick={() => onToggleAdmin(user.id)}
                               className="flex items-center gap-1 px-3 py-2 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-md transition-colors text-sm font-medium"
@@ -270,7 +278,7 @@ export function GlobalAdminPage({
                           )
                         )}
 
-                        {currentUserIsSuperAdmin && !user.isSuperAdmin && (
+                        {currentUserIsSuperAdmin && user.role !== "SUPERADMIN" && (
                           <button
                             onClick={() => setShowDeleteConfirm(user.id)}
                             className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors text-sm font-medium"
@@ -292,14 +300,14 @@ export function GlobalAdminPage({
         {activeTab === 'books' && (
           <div>
             {/* Book Suggestions Section */}
-            {pendingSuggestions.length > 0 && (
+            {bookSuggestions.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold text-gray-800">
                     Buchvorschläge von Benutzern
                   </h2>
                   <span className="px-3 py-1 bg-orange-100 text-orange-700 text-sm font-bold rounded-full">
-                    {pendingSuggestions.length} neue
+                    {bookSuggestions.length} neue
                   </span>
                 </div>
                 <p className="text-sm text-gray-600 mb-4">
@@ -323,48 +331,34 @@ export function GlobalAdminPage({
                         <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                           Jahr
                         </th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                          Vorgeschlagen von
-                        </th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                          Datum
-                        </th>
                         <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
                           Aktion
                         </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {pendingSuggestions.map((suggestion) => (
+                      {bookSuggestions.map((suggestion) => (
                         <tr
                           key={suggestion.id}
                           className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
                         >
                           <td className="px-4 py-3 text-sm text-gray-800 font-medium">
-                            {suggestion.bookData?.title}
+                            {suggestion.title}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-700">
-                            {suggestion.bookData?.authors.join(', ')}
+                            {suggestion.authors.join(', ')}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-700">
-                            {suggestion.bookData?.isbn}
+                            {suggestion.isbn}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-700">
-                            {suggestion.bookData?.publishedDate}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-700">
-                            {suggestion.senderName}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {suggestion.timestamp}
+                            {suggestion.publishedDate}
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => {
-                                  if (suggestion.bookData) {
-                                    onApproveSuggestion(suggestion.id, suggestion.bookData);
-                                  }
+                                    onApproveSuggestion(suggestion);
                                 }}
                                 className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white hover:bg-green-700 rounded-md transition-colors text-sm font-medium"
                                 title="Buch zur Datenbank hinzufügen"
@@ -373,7 +367,7 @@ export function GlobalAdminPage({
                                 Ja
                               </button>
                               <button
-                                onClick={() => onRejectSuggestion(suggestion.id)}
+                                onClick={() => onRejectSuggestion(suggestion)}
                                 className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white hover:bg-red-700 rounded-md transition-colors text-sm font-medium"
                                 title="Vorschlag ablehnen"
                               >
@@ -490,42 +484,6 @@ export function GlobalAdminPage({
                   </div>
                 </div>
               )}
-
-              {/* Example ISBNs */}
-              <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="font-semibold text-gray-800 mb-2">
-                  Beispiel-ISBNs zum Testen:
-                </h4>
-                <ul className="text-sm text-gray-700 space-y-1">
-                  <li>
-                    <button
-                      onClick={() => setIsbnSearch('9783518368541')}
-                      className="text-blue-600 hover:underline"
-                    >
-                      9783518368541
-                    </button>{' '}
-                    - Der Prozess (Franz Kafka)
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => setIsbnSearch('9783551354013')}
-                      className="text-blue-600 hover:underline"
-                    >
-                      9783551354013
-                    </button>{' '}
-                    - Harry Potter und die Kammer des Schreckens
-                  </li>
-                  <li>
-                    <button
-                      onClick={() => setIsbnSearch('9783257228007')}
-                      className="text-blue-600 hover:underline"
-                    >
-                      9783257228007
-                    </button>{' '}
-                    - Das Parfum (Patrick Süskind)
-                  </li>
-                </ul>
-              </div>
             </div>
           </div>
         )}

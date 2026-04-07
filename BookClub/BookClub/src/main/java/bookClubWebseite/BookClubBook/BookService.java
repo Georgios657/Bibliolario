@@ -11,6 +11,7 @@ import java.util.stream.StreamSupport;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.retry.annotation.Backoff;
@@ -29,6 +30,8 @@ public class BookService {
 	@Autowired
 	private BookRepository bookRepository;
 	
+	@Value("${api.key}")
+	private String apiKey;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -48,7 +51,7 @@ public class BookService {
 
 
 	//Anahnd der ISBN wird nun über googleBooks und danach über OpenBooks versucht die Inhalte auszulesen
-	private Book registerBookAPI(String isbn){
+	public Book registerBookAPI(String isbn){
 		JsonNode responseGoogle = null;
 		//Google Books
 		try {
@@ -218,7 +221,7 @@ public class BookService {
 		)
 	//Probiere dreimal die Daten von GoogleBook zu erhalten
 	private JsonNode registerBookGoogle(String isbn) {
-		String apiKey = 
+
 		String url = "https://www.googleapis.com/books/v1/volumes?q=isbn:" + isbn+ "&key=" + apiKey;
 		ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
 		
@@ -376,6 +379,12 @@ public static boolean isValidIsbn13(String isbn) {
 	            .ratings(BookResponseDTO.Ratings.builder().stars(0).quality(0).fetish(0).cover(0).build())
 	            .build()
 	    ).toList();
+	}
+
+
+	public void addBookSug(Book toAdd) {
+		bookRepository.save(toAdd);
+		
 	}
 
 

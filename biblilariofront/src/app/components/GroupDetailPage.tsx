@@ -3,6 +3,8 @@
   import { BookGroup, GroupBook } from '@/data/mockGroups';
   import { GroupAdminPanel } from './GroupAdminPanel';
   import { ChatMessage, ChatMessageSendDTO } from '@/data/mockMessages';
+  import { Client } from "@stomp/stompjs";
+  import SockJS from 'sockjs-client';
 
   interface GroupDetailPageProps {
     group: BookGroup;
@@ -58,6 +60,38 @@
   console.log('isAdmin:', isAdmin);
   console.log('isPrivate', group.isPrivate);
 
+
+
+useEffect(() => {
+  const client = new Client({
+    // ✅ Für Spring STOMP + SockJS unbedingt webSocketFactory nutzen
+    webSocketFactory: () => new SockJS("http://localhost:8080/ws"),
+
+    reconnectDelay: 5000,
+
+    onConnect: () => {
+      console.log("✅ Verbunden!");
+
+      client.subscribe(`/topic/group/${group.id}`, (message) => {
+        const newMessage = JSON.parse(message.body);
+        console.log("Neue Nachricht:", newMessage);
+
+        setChatMessages((prev) => [...prev, newMessage]);
+      });
+    },
+
+    onStompError: (frame) => {
+      console.error("Broker error:", frame.headers["message"]);
+    },
+  });
+
+  client.activate();
+
+  return () => client.deactivate();
+}, [group.id]);
+
+
+
     const pendingRequests = group.joinRequests?.length || 0;
 useEffect(() => {
   const fetchGroupMessages = async () => {
@@ -100,7 +134,6 @@ const handleSendChatMessage = async () => {
     timestamp: new Date().toISOString(),
   };
 
-  setChatMessages([...chatMessages, newMessage]);
   setChatMessage('');
 
   const token = localStorage.getItem('token');
@@ -621,6 +654,7 @@ await fetch(`http://localhost:8080/chat/group/${group.id}/send`, {
             members={group.members || []}
             joinRequests={group.joinRequests || []}
             currentUserId={currentUserId}
+            currentUserName={currentUserName}
             onAcceptRequest={(requestId) => onAcceptJoinRequest(group.id, requestId)}
             onRejectRequest={(requestId) => onRejectJoinRequest(group.id, requestId)}
             onRemoveMember={(memberId) => onRemoveMember(group.id, memberId)}

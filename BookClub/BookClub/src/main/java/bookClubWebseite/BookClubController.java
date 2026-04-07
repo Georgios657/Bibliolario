@@ -1,6 +1,7 @@
 package bookClubWebseite;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -46,6 +48,8 @@ import bookClubWebseite.BookClubRating.RatingClass;
 import bookClubWebseite.BookClubRating.RatingService;
 import bookClubWebseite.BookClubReader.BookReader;
 import bookClubWebseite.BookClubReader.BookReaderService;
+import bookClubWebseite.BookClubSuggestionBook.BookSuggestion;
+import bookClubWebseite.BookClubSuggestionBook.BookSuggestionService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -70,6 +74,9 @@ public class BookClubController {
 	
 	@Autowired
 	private RatingService ratingService;
+	
+	@Autowired
+	private BookSuggestionService bookSuggestionService;
 
 	
 
@@ -90,7 +97,36 @@ public class BookClubController {
 	}
 
 
+	@PostMapping("/books/suggest/register/{isbn}")
+	public ResponseEntity<?> registerSuggestion(@PathVariable String isbn) {
+	    BookSuggestion sug = bookSuggestionService.findByISBN(isbn);
 
+	    if (sug == null) {
+	        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+	                .body("Suggestion nicht gefunden");
+	    }
+
+	    Book toAdd = new Book(
+	    	sug.getISBN(),
+	        sug.getBookName(),
+	        sug.getBookPicURL(),
+	        sug.getAuthors(),
+	        sug.getPublishDate(),
+	        sug.getLanguage()
+	    );
+
+	    bookService.addBookSug(toAdd);
+	    bookSuggestionService.deleteByISBN(sug);
+
+	    return ResponseEntity.ok("Book erfolgreich übernommen");
+	}	
+
+	@PostMapping("/books/add/{isbn}")
+	public ResponseEntity<?> addBook(@PathVariable String isbn) {
+	    bookService.registerBook(isbn);
+
+	    return ResponseEntity.ok("Book erfolgreich übernommen");
+	}	
 	
 	@PostMapping("/settings/email") //Email wird geändert
 	public String setNewMail(@RequestParam String email, Authentication authentication) {
@@ -299,6 +335,27 @@ public ResponseEntity<List<UserDTO>> getAllInvitableUsers(
     return ResponseEntity.ok(invitableUsers);
 }
 
+@GetMapping("/users")
+public ResponseEntity<List<UserDTO>> getAllUsers() {
+    List<UserDTO> users = bookReaderService.findAllUsers();
+    return ResponseEntity.ok(users);
+}
+
+@PutMapping("/users/blocking/{id}")
+public ResponseEntity<?> blockUnblock(@PathVariable Long id) {
+	bookReaderService.blockUnblock(id);
+    return ResponseEntity.ok(
+            Map.of("message", "Account Status erfolgreich geändert")
+        );
+}
+
+@PutMapping("/users/admin/{id}")
+public ResponseEntity<?> adminUnadmin(@PathVariable Long id) {
+	bookReaderService.adminUnadmin(id);
+    return ResponseEntity.ok(
+            Map.of("message", "Account Status erfolgreich geändert")
+        );
+}
 
 @PostMapping("/api/user/soft-delete")
 public ResponseEntity<?> softDeleteUser(Authentication authentication) {
@@ -310,6 +367,25 @@ public ResponseEntity<?> softDeleteUser(Authentication authentication) {
 
     bookReaderService.softDeleteUser(user.getId());
     return ResponseEntity.ok(Map.of("message", "Account erfolgreich gelöscht"));
+}
+
+@PostMapping("/users/admin/{id}")
+public ResponseEntity<?> softDeleteUserByID(
+        @PathVariable Long id,
+        Authentication authentication
+) {
+    BookReader user = bookReaderService.findById(id);
+
+    if (user == null) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", "User nicht gefunden"));
+    }
+
+    bookReaderService.softDeleteUser(id);
+
+    return ResponseEntity.ok(
+            Map.of("message", "Account erfolgreich gelöscht")
+    );
 }
 
 @GetMapping("books/search")

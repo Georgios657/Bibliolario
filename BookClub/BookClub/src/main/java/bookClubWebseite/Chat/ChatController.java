@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +24,9 @@ import bookClubWebseite.BookClubReader.BookReaderService;
 @RequestMapping("/chat")
 public class ChatController {
 
+	@Autowired
+	private SimpMessagingTemplate messagingTemplate;
+	
 	@Autowired
     private GroupMessageService groupMessageService;
 	
@@ -70,10 +74,20 @@ public class ChatController {
 
         System.out.println("Kommentar "+saved.getContent());
         System.out.println("Gruppe "+saved.getGroup().getName());
-        return new ChatMessageFrontDTO(
+        
+        // 👉 DTO erstellen
+        ChatMessageFrontDTO response = new ChatMessageFrontDTO(
                 sender.getUsername(),
                 saved.getContent(),
                 saved.getTimestamp()
         );
+
+        // 🔥 WICHTIG: gruppenspezifischer Channel!
+        messagingTemplate.convertAndSend(
+                "/topic/group/" + groupId,
+                response
+        );
+
+        return response;
     }
 }

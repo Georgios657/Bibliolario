@@ -28,11 +28,12 @@ public class GroupDetailDTO {
     private List<MemberDTO> members;
     private List<GroupBookDTO> books;
     private boolean isJoined;
-    
+    private List<JoinRequestDTOSelfInvite> joinRequests;    
  
 
     public record MemberDTO(Long id, String name, String email, boolean isAdmin) {}
     
     public record BookDTO(String id, String title, ArrayList<String> authors) {}
+
 }
 

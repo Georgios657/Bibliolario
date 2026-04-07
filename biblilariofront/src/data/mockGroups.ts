@@ -30,11 +30,7 @@ export interface GroupMember {
 
 export interface JoinRequest {
   id: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  requestDate: string;
-  message: string;
+  name: string;
 }
 
 export interface GroupChatMessage {
