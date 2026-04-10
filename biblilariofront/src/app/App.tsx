@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef , useState } from 'react';
 import { useEffect } from 'react';
 import { LoginPage } from '@/app/components/LoginPage';
 import { RegisterPage } from '@/app/components/RegisterPage';
@@ -14,10 +14,22 @@ import { Book } from '@/app/components/BookTable';
 import { mockBooks } from '@/data/mockBooks';
 import {BookGroup} from '@/data/mockGroups';
 import { ChatMessage, Message } from '@/data/mockMessages';
+import { API } from "../api";
+
+import SockJS from 'sockjs-client';
+  import { Client } from "@stomp/stompjs";
+  import { useWebSocket, WebSocketProvider } from "./WebSocketContext";
 
 type AuthView = 'login' | 'register' | 'main' | 'personal' | 'groups' | 'group-detail' | 'global-admin';
 
-export default function App() {
+  type AppContentProps = {
+  setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>;
+};
+
+function AppContent({ setIsLoggedIn }: AppContentProps) {
+
+
+
   const [books, setBooks] = useState<Book[]>([]);
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('de-DE');
@@ -37,6 +49,21 @@ const formatDate = (dateString: string) => {
   const [groupMessages, setGroupMessages] = useState<ChatMessage[]>([]);
   const [bookSuggestions, setBookSuggestions] = useState<Book[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const { clientRef, connected } = useWebSocket();
+
+useEffect(() => {
+  const client = clientRef.current;
+  if (!client) return;
+
+  if (!client.connected) return;
+
+  const sub = client.subscribe("/user/queue/messages", (msg) => {
+    const data = JSON.parse(msg.body);
+    setMessages((prev) => [...prev, data]);
+  });
+
+  return () => sub.unsubscribe();
+}, [clientRef.current?.connected]);
 
 const filteredUsers = users.filter(
   (user) =>
@@ -57,12 +84,15 @@ const filteredUsers = users.filter(
   );
 };
 
+
 useEffect(() => {
   if (currentView !== 'global-admin') return;
 
+
+
   const token = localStorage.getItem('token');
 
-  fetch('http://localhost:8080/users', {
+  fetch(API.base + "/users", {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -84,7 +114,7 @@ useEffect(() => {
     });
 
      // 👉 BOOK SUGGESTIONS laden
-  fetch('http://localhost:8080/books/suggest/getAll', {
+  fetch(API.base + "/books/suggest/getAll", {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -104,8 +134,6 @@ useEffect(() => {
     .catch((err) => {
       console.error(err);
     });
-
-
 }, [currentView]);
 
 useEffect(() => {
@@ -114,7 +142,7 @@ useEffect(() => {
 
   const token = localStorage.getItem('token');
 
-  fetch(`http://localhost:8080/api/groups/${selectedGroupId}/invitable-users`, {
+  fetch(`${API.base}/api/groups/${selectedGroupId}/invitable-users`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -139,7 +167,7 @@ useEffect(() => {
 
     const token = localStorage.getItem('token');
 
-    fetch('http://localhost:8080/groups', {
+    fetch(`${API.base}/groups`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -179,7 +207,7 @@ useEffect(() => {
     const token = localStorage.getItem('token');
 
     // Bücher laden
-    fetch('http://localhost:8080/books', {
+    fetch(`${API.base}/books`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -197,7 +225,7 @@ useEffect(() => {
       .catch(err => console.error('Fehler beim Laden der Bücher:', err));
 
     // Ungelesene Nachrichten laden
-    fetch('http://localhost:8080/messages/inbox', {
+    fetch(`${API.base}/messages/inbox`, {
       method: 'GET',
       headers: { 
         'Content-Type': 'application/json', 
@@ -230,6 +258,7 @@ const inboxMessages = messages;
     console.log("userId:", userId);
     setCurrentUserName(userName);
     setRole(role);
+    setIsLoggedIn(true); 
     
     // Check if user is admin or superadmin - they go directly to admin page
   if (role === "ADMIN" || role === "SUPERADMIN") {
@@ -246,6 +275,11 @@ const inboxMessages = messages;
   };
 
   const handleLogout = () => {
+    
+    clientRef.current?.deactivate(); // ✅ jetzt bekannt
+    localStorage.removeItem("token");
+    setIsLoggedIn(false);
+
     setCurrentUserId('');
     setCurrentUserName('');
     setCurrentView('login');
@@ -264,7 +298,7 @@ const inboxMessages = messages;
   const token = localStorage.getItem('token');
 
   try {
-    const res = await fetch(`http://localhost:8080/chat/group/${groupId}`, {
+    const res = await fetch(`${API.base}/chat/group/${groupId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -287,7 +321,7 @@ const handleGroupClick = async (groupId: number) => {
   const token = localStorage.getItem('token');
 
   try {
-    const res = await fetch(`http://localhost:8080/groups/${groupId}`, {
+    const res = await fetch(`${API.base}/groups/${groupId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -334,7 +368,7 @@ const handleLeaveGroup = async (groupId: string) => {
   }
 
   try {
-    const response = await fetch(`http://localhost:8080/${groupId}/leave`, {
+    const response = await fetch(`${API.base}/${groupId}/leave`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -392,7 +426,7 @@ const handleAcceptJoinRequest = (groupId: string, requestId: string) => {
   );
 
   // 🔥 2. API Call
-  fetch(`http://localhost:8080/groups/${groupId}/join-requests/${requestId}/accept`, {
+  fetch(`${API.base}/groups/${groupId}/join-requests/${requestId}/accept`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -423,7 +457,7 @@ const handleRejectJoinRequest = (groupId: string, requestId: string) => {
   );
 
   // 🔥 2. API Call
-  fetch(`http://localhost:8080/groups/${groupId}/join-requests/${requestId}/reject`, {
+  fetch(`${API.base}/groups/${groupId}/join-requests/${requestId}/reject`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -447,7 +481,7 @@ const handleRemoveMember = async (groupId: string, memberId: string) => {
   if (!token) return;
 
   try {
-    const res = await fetch(`http://localhost:8080/${groupId}/members/${memberId}`, {
+    const res = await fetch(`${API.base}/${groupId}/members/${memberId}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -471,7 +505,7 @@ const handleTransferAdmin = async (groupId: string, memberId: string) => {
   if (!token) return;
 
   try {
-    const res = await fetch(`http://localhost:8080/${groupId}/transfer-admin/${memberId}`, {
+    const res = await fetch(`${API.base}/${groupId}/transfer-admin/${memberId}`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -501,7 +535,7 @@ const handleDeleteGroup = async (groupId: string) => {
   if (!confirmDelete) return;
 
   try {
-    const res = await fetch(`http://localhost:8080/${groupId}`, {
+    const res = await fetch(`${API.base}/${groupId}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -540,7 +574,7 @@ const handleSendMessage = (message: Omit<Message, 'id' | 'timestamp' | 'isRead'>
 
   // 3️⃣ Nachricht parallel ans Backend senden
   const token = localStorage.getItem("token");
-  fetch("http://localhost:8080/messages/send", {
+  fetch(`${API.base}/messages/send`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -572,7 +606,7 @@ const handleSendMessage = (message: Omit<Message, 'id' | 'timestamp' | 'isRead'>
   const handleMarkAsRead = (messageId: string) => {
     const token = localStorage.getItem("token");
 
-  fetch(`http://localhost:8080/messages/${messageId}/read`, {
+  fetch(`${API.base}/messages/${messageId}/read`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -585,7 +619,7 @@ const handleToggleBlock = async (userId: string) => {
     const token = localStorage.getItem("token");
 
     const res = await fetch(
-      `http://localhost:8080/users/blocking/${userId}`,
+     `${API.base}/users/blocking/${userId}`,
       {
         method: "PUT",
         headers: {
@@ -625,7 +659,7 @@ const handleToggleBlock = async (userId: string) => {
     const token = localStorage.getItem("token");
 
     const res = await fetch(
-      `http://localhost:8080/users/admin/${userId}`,
+      `${API.base}/users/admin/${userId}`,
       {
         method: "PUT",
         headers: {
@@ -665,7 +699,7 @@ const handleDeleteUser = async (userId: string) => {
 
   try {
     const response = await fetch(
-      `http://localhost:8080/users/admin/${userId}`,
+     `${API.base}/users/admin/${userId}`,
       {
         method: "POST",
         headers: {
@@ -699,7 +733,7 @@ const handleCreateGroup = async (name: string, description: string, isPrivate: b
   try {
     const token = localStorage.getItem('token');
 
-    const response = await fetch('http://localhost:8080/groups', {
+    const response = await fetch(`${API.base}/groups`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -716,7 +750,7 @@ const handleCreateGroup = async (name: string, description: string, isPrivate: b
     const backendGroup = await response.json();
 
     // 🔥 Gruppe erneut vollständig laden
-    const groupResponse = await fetch(`http://localhost:8080/groups/${backendGroup.id}`, {
+    const groupResponse = await fetch(`${API.base}/groups/${backendGroup.id}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -775,8 +809,8 @@ const handleCreateGroup = async (name: string, description: string, isPrivate: b
   const token = localStorage.getItem("token"); // falls du JWT nutzt
   const isbn = bookData.isbn; // wichtig: muss existieren!
 
-  fetch(`http://localhost:8080/books/suggest/register/${isbn}`, {
-    method: "POST",
+  fetch(API_URL+`/books/suggest/register/${isbn}`, {
+    method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -790,11 +824,6 @@ const handleCreateGroup = async (name: string, description: string, isPrivate: b
     .then((data) => {
       console.log("Erfolg:", data);
       alert(`Buch "${bookData.title}" wurde zur Datenbank hinzugefügt!`);
-
-      // 👉 UI aktualisieren (sehr wichtig!)
-      setBookSuggestions((prev: any[]) =>
-        prev.filter((b) => b.isbn !== isbn)
-      );
     })
     .catch((err) => {
       console.error(err);
@@ -806,7 +835,7 @@ const handleRejectSuggestion = (bookData: any) => {
   const token = localStorage.getItem("token");
   const isbn = bookData.isbn;
 
-  fetch(`http://localhost:8080/books/suggest/register/${isbn}`, {
+  fetch(`${API.base}/books/suggest/register/${isbn}`, {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -821,10 +850,6 @@ const handleRejectSuggestion = (bookData: any) => {
     .then((data) => {
       console.log("Gelöscht:", data);
 
-      // 👉 UI aktualisieren (sehr wichtig!)
-      setBookSuggestions((prev: any[]) =>
-        prev.filter((b) => b.isbn !== isbn)
-      );
     })
     .catch((err) => {
       console.error(err);
@@ -861,7 +886,7 @@ const handleTogglePrivacy = async (groupId: string) => {
   if (!token) return;
 
   try {
-    const res = await fetch(`http://localhost:8080/${groupId}/toggle-privacy`, {
+    const res = await fetch(`${API.base}/${groupId}/toggle-privacy`, {
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -897,7 +922,7 @@ const handleInviteUser = async (groupId: string, userId: string) => {
 
   try {
     // Anfrage an das Backend
-    const res = await fetch(`http://localhost:8080/messages/invitations`, {
+    const res = await fetch(`${API.base}/messages/invitations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1027,11 +1052,11 @@ const handleInviteUser = async (groupId: string, userId: string) => {
           onToggleAdmin={handleToggleAdmin}
           onDeleteUser={handleDeleteUser}
           onAddBook={handleAddBook}
-          bookSuggestions={bookSuggestions}
+          bookSuggestionsIn={bookSuggestions}
           onApproveSuggestion={handleApproveSuggestion}
           onRejectSuggestion={handleRejectSuggestion}
-            filteredUsers={filteredUsers}
-           searchQuery={searchQuery}
+          filteredUsers={filteredUsers}
+          searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onOpenSettings={() => setShowSettings(true)}
         />
@@ -1058,5 +1083,15 @@ const handleInviteUser = async (groupId: string, userId: string) => {
         onDeleteAccount={handleDeleteAccount}
       />
     </div>
+  );
+}
+
+export default function App() {
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  return (
+    <WebSocketProvider isLoggedIn={isLoggedIn}>
+       <AppContent setIsLoggedIn={setIsLoggedIn} />
+    </WebSocketProvider>
   );
 }

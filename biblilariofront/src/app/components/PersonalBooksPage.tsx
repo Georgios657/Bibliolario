@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Plus, Edit2, Trash2, Star, Send, Check } from 'lucide-react';
 import { Book } from './BookTable';
+import { API } from "../../api";
 
 interface PersonalBook {
   bookId: string;
@@ -40,7 +41,7 @@ const [popupMessage, setPopupMessage] = useState<string | null>(null);
   useEffect(() => {
     const fetchPersonalBooks = async () => {
       try {
-        const res = await fetch('http://localhost:8080/ownCollection', {
+        const res = await fetch(`${API.base}/ownCollection`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error('Fehler beim Laden Ihrer Bücher');
@@ -78,7 +79,7 @@ const [popupMessage, setPopupMessage] = useState<string | null>(null);
     if (!searchQuery) return;
 
     try {
-      const res = await fetch('http://localhost:8080/collectionSearch', {
+      const res = await fetch(`${API.base}/collectionSearch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -124,7 +125,7 @@ const handleSuggestBook = () => {
 
   setIsSearchingSuggest(true);
 
-  fetch(`http://localhost:8080/books/suggest`, {
+  fetch(`${API.base}/books/suggest`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -467,7 +468,7 @@ function RatingModal({ book, onSave, onClose }: RatingModalProps) {
   const handleSave = async () => {
     try {
       const updatedBook = { ...book, myRatings: ratings, myComment: comment};
-      const res = await fetch(`http://localhost:8080/ownCollection/rate/${book.bookId}`, {
+      const res = await fetch(`${API.base}/ownCollection/rate/${book.bookId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ ...ratings, comment }),

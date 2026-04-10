@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Send, Mail, MailOpen, ArrowLeft, Plus } from 'lucide-react';
 import { Message } from '@/data/mockMessages';
+import { API } from "../../api";
 
 interface MessagesModalProps {
   isOpen: boolean;
@@ -81,7 +82,7 @@ const handleReply = (message: Message) => {
 const handleAcceptInvitation = (message: Message) => {
   const token = localStorage.getItem("token");
 
-  fetch(`http://localhost:8080/messages/${message.id}/accept`, {
+  fetch(`${API.base}/messages/${message.id}/accept`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`
@@ -97,7 +98,7 @@ const handleAcceptInvitation = (message: Message) => {
 const handleDeclineInvitation = (message: Message) => {
   const token = localStorage.getItem("token");
 
-  fetch(`http://localhost:8080/messages/${message.id}/decline`, {
+  fetch(`${API.base}/messages/${message.id}/decline`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`

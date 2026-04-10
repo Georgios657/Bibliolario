@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Settings, Mail, Lock, Trash2, X } from 'lucide-react';
+import { API } from "../../api";
+
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -48,7 +50,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    fetch('http://localhost:8080/api/user/me', {
+    fetch(`${API.base}/api/user/me`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -165,7 +167,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       .map(b => b.toString(16).padStart(2,'0')).join('');
 
     try {
-      const response = await fetch('http://localhost:8080/api/user/soft-delete', {
+      const response = await fetch(`${API.base}/api/user/soft-delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({

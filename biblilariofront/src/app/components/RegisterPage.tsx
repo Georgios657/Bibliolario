@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { CheckCircle } from 'lucide-react';
+import { API } from "../../api";
+
 
 interface RegisterPageProps {
   onRegister: (userId: string, userName: string) => void;
@@ -29,7 +31,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   try {
     // 1️⃣ Registrierung
-    const registerResponse = await fetch('http://localhost:8080/register', {
+    const registerResponse = await fetch(`${API.base}/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

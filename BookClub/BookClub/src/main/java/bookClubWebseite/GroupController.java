@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -52,6 +53,11 @@ import bookClubWebseite.BookClubReader.BookReaderService;
 @RestController
 public class GroupController {
 
+    
+	@Autowired
+	private SimpMessagingTemplate messagingTemplate;
+	
+	
 	@Autowired 
 	private MessageService messageService;
 	
@@ -177,8 +183,13 @@ public class GroupController {
             Authentication authentication
     ) {
 
-        groupService.requestJoin(groupId, bookReaderService.findByUsername(authentication.getName()));
+    	JoinRequestDTOSelfInvite dt = groupService.requestJoin(groupId, bookReaderService.findByUsername(authentication.getName()));
 
+    	messagingTemplate.convertAndSend(
+    		    "/topic/group/" + groupId + "/join-requests",
+    		    dt
+    		);
+        
         return ResponseEntity.ok().build();
     }
     

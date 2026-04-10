@@ -197,11 +197,12 @@ public class GroupService {
 		
 	}
 
-	public void requestJoin(Long groupId, BookReader reader) {
+	public JoinRequestDTOSelfInvite requestJoin(Long groupId, BookReader reader) {
 		Group group = groupRepository.findById(groupId).get();
 		group.addRequest(reader);
 		System.out.println("Versuche Gruppe beizureten:"+group.getName());
 		groupRepository.save(group);
+		return new JoinRequestDTOSelfInvite(reader.getId(),reader.getUsername());
 		
 	}
 

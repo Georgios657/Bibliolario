@@ -16,14 +16,21 @@ export default defineConfig({
     tailwindcss(),
 
   ],
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
+    server: {
+      host: "0.0.0.0", // 🔥 statt true
+      port: 5173,
+      strictPort: true,
+      allowedHosts: [
+        '.trycloudflare.com',
+        'localhost'
+      ],
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
       },
     },
-      },
   resolve: {
     alias: {
       // Alias @ to the src directory

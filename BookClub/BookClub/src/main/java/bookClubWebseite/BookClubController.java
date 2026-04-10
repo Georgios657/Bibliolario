@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
@@ -57,6 +58,10 @@ import lombok.Data;
 
 @Controller
 public class BookClubController {
+	
+
+
+	
 	@Autowired 
 	private MessageService messageService;
 	
@@ -89,37 +94,6 @@ public class BookClubController {
 	        "headerName", token.getHeaderName()
 	    );
 	}
-	
-	@GetMapping("/userSettings")
-	public String userSettings() {
-
-		return "userSettings";
-	}
-
-
-	@PostMapping("/books/suggest/register/{isbn}")
-	public ResponseEntity<?> registerSuggestion(@PathVariable String isbn) {
-	    BookSuggestion sug = bookSuggestionService.findByISBN(isbn);
-
-	    if (sug == null) {
-	        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-	                .body("Suggestion nicht gefunden");
-	    }
-
-	    Book toAdd = new Book(
-	    	sug.getISBN(),
-	        sug.getBookName(),
-	        sug.getBookPicURL(),
-	        sug.getAuthors(),
-	        sug.getPublishDate(),
-	        sug.getLanguage()
-	    );
-
-	    bookService.addBookSug(toAdd);
-	    bookSuggestionService.deleteByISBN(sug);
-
-	    return ResponseEntity.ok("Book erfolgreich übernommen");
-	}	
 
 	@PostMapping("/books/add/{isbn}")
 	public ResponseEntity<?> addBook(@PathVariable String isbn) {

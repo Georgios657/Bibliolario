@@ -1,0 +1,9 @@
+tunnel: my-tunnel
+credentials-file: ~/.cloudflared/uuid.json
+
+ingress:
+  - hostname: corrections-maintenance-eat-educational.trycloudflare.com
+    service: http://localhost:8080
+    originRequest:
+      httpHostHeader: localhost:8080
+  - service: http_status:404

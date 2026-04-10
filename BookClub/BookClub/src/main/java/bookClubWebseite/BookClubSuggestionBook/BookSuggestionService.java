@@ -21,7 +21,7 @@ public class BookSuggestionService {
 		@Autowired
 		private BookService bookService;
 
-		public void addNewSuggestion(String isbn) {
+		public BookSuggestion addNewSuggestion(String isbn) {
 
 			isbn = bookService.checkIsbn(isbn);
 			System.out.println("ISBN ist:"+ isbn);
@@ -55,6 +55,7 @@ public class BookSuggestionService {
 		    System.out.println("Vorschlag zur Datenbank hinzugefügt");
 
 		    bookSuggestionRepository.save(bookSug);
+		    return bookSug;
 		}
 
 		public List<BookBasicDTO> getAllBooks() {
@@ -69,8 +70,22 @@ public class BookSuggestionService {
 			
 		}
 
-		public void deleteByISBN(BookSuggestion book) {
+		public void deleteBySuggestion(BookSuggestion book) {
+			System.out.println("Vorschlag:"+book.getBookName()+" gelöscht");
 			bookSuggestionRepository.delete(book);
+			
+		}
+
+		public Book addBookFromSuggestion(BookSuggestion sug) {
+			Book book = new Book(sug.getISBN());
+			book.setBookName(sug.getBookName());
+			book.setBookPicURL(sug.getBookPicURL());
+			book.setAuthors(sug.getAuthors());
+			book.setPublishDate(sug.getPublishDate());
+			book.setLanguage(sug.getLanguage());
+			
+			return book;
+			
 			
 		}
 		

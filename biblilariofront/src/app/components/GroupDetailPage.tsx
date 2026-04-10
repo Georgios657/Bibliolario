@@ -1,10 +1,13 @@
   import { useState, useRef, useEffect } from 'react';
   import { ArrowLeft, LogOut, Star, Users, Book, Edit2, Shield, Search, Filter, BookPlus, Check, Send, MessageCircle } from 'lucide-react';
-  import { BookGroup, GroupBook } from '@/data/mockGroups';
+  import { BookGroup, GroupBook, JoinRequest } from '@/data/mockGroups';
   import { GroupAdminPanel } from './GroupAdminPanel';
   import { ChatMessage, ChatMessageSendDTO } from '@/data/mockMessages';
   import { Client } from "@stomp/stompjs";
   import SockJS from 'sockjs-client';
+  import { useWebSocket, WebSocketProvider } from "../WebSocketContext";
+  import { API } from "../../api";
+
 
   interface GroupDetailPageProps {
     group: BookGroup;
@@ -53,6 +56,8 @@
    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const chatContainerRef = useRef<HTMLDivElement>(null);
   const isAdmin = group.admin?.name === currentUserName;
+    const { clientRef, connected } = useWebSocket();
+    const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
 
     // Debug-Ausgabe
   console.log('ownerId:', group.admin?.name);
@@ -60,44 +65,54 @@
   console.log('isAdmin:', isAdmin);
   console.log('isPrivate', group.isPrivate);
 
-
-
 useEffect(() => {
-  const client = new Client({
-    // ✅ Für Spring STOMP + SockJS unbedingt webSocketFactory nutzen
-    webSocketFactory: () => new SockJS("http://localhost:8080/ws"),
+  const client = clientRef.current;
+  if (!client) return;
+  if (!connected) return;
+  if (!group?.id) return;
 
-    reconnectDelay: 5000,
+  const destination = `/topic/group/${group.id}/join-requests`;
 
-    onConnect: () => {
-      console.log("✅ Verbunden!");
+  const sub = client.subscribe(destination, (message) => {
+    const newRequest = JSON.parse(message.body);
 
-      client.subscribe(`/topic/group/${group.id}`, (message) => {
-        const newMessage = JSON.parse(message.body);
-        console.log("Neue Nachricht:", newMessage);
-
-        setChatMessages((prev) => [...prev, newMessage]);
-      });
-    },
-
-    onStompError: (frame) => {
-      console.error("Broker error:", frame.headers["message"]);
-    },
+    // 👉 NICHT group mutieren!
+    // 👉 stattdessen lokalen State pflegen
+    setJoinRequests((prev) => [...prev, newRequest]);
   });
 
-  client.activate();
+  return () => sub.unsubscribe();
+}, [group?.id, connected]);
 
-  return () => client.deactivate();
-}, [group.id]);
+useEffect(() => {
+  const client = clientRef.current;
+  if (!client) return;
+  if (!connected) return;
+  if (!group?.id) return;
 
+  const sub = client.subscribe(
+    `/topic/group/${group.id}`,
+    (message) => {
+      const newMessage = JSON.parse(message.body);
+      setChatMessages((prev) => [...prev, newMessage]);
+    }
+  );
 
+  return () => sub.unsubscribe();
+}, [group?.id, connected]);
 
-    const pendingRequests = group.joinRequests?.length || 0;
+useEffect(() => {
+  if (group?.joinRequests) {
+    setJoinRequests(group.joinRequests);
+  }
+}, [group]);
+
+    const pendingRequests = joinRequests.length || 0;
 useEffect(() => {
   const fetchGroupMessages = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:8080/chat/group/${group.id}`, {
+      const res = await fetch(`${API.base}/chat/group/${group.id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -137,7 +152,7 @@ const handleSendChatMessage = async () => {
   setChatMessage('');
 
   const token = localStorage.getItem('token');
-await fetch(`http://localhost:8080/chat/group/${group.id}/send`, {
+await fetch(`${API.base}/chat/group/${group.id}/send`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -177,7 +192,7 @@ await fetch(`http://localhost:8080/chat/group/${group.id}/send`, {
     try {
       // Beispiel: fetch von einem Backend-Endpunkt
       const token = localStorage.getItem('token'); // Falls Auth nötig
-      const res = await fetch(`http://localhost:8080/books/search?isbn=${isbnSearch}`, {
+      const res = await fetch(`${API.base}/books/search?isbn=${isbnSearch}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -221,7 +236,7 @@ await fetch(`http://localhost:8080/chat/group/${group.id}/send`, {
 
     try {
       const res = await fetch(
-        `http://localhost:8080/${group.id}/books?isbn=${bookSearchResult.isbn}`,
+       `${API.base}/${group.id}/books?isbn=${bookSearchResult.isbn}`,
         {
           method: "POST",
           headers: {
@@ -798,7 +813,7 @@ const [comment, setComment] = useState(book.myRating?.comment || '');
         comment: comment
       };
 
-      const res = await fetch(`http://localhost:8080/ownCollection/rate/${book.bookId}`, {
+      const res = await fetch(`${API.base}/ownCollection/rate/${book.bookId}`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",

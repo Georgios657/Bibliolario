@@ -1,5 +1,9 @@
 import { LogOut, User, BookOpen, Users, Bell, Shield, Settings } from 'lucide-react';
 import { BookTable, Book } from './BookTable';
+import { Client } from "@stomp/stompjs";
+import SockJS from 'sockjs-client';
+import { useState, useRef, useEffect } from 'react';
+import { ChatMessage, Message } from '@/data/mockMessages';
 
 interface MainPageProps {
   books: Book[];
@@ -9,7 +13,8 @@ interface MainPageProps {
   onGoToPersonalBooks: () => void;
   onGoToGroups: () => void;
   onOpenMessages: () => void;
-  unreadMessageCount: number;
+  unreadMessageCount: number,
+  messages:Message[];
   isGlobalAdmin: boolean;
   onGoToGlobalAdmin: () => void;
   onOpenSettings: () => void;
@@ -28,7 +33,12 @@ export function MainPage({
   onGoToGlobalAdmin,
   onOpenSettings,
 }: MainPageProps) {
+
+
+
   return (
+
+
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">

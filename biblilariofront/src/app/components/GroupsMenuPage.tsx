@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Search, Users, Book, UserPlus, Check, PlusCircle } from 'lucide-react';
 import { BookGroup } from '@/data/mockGroups';
+import { API } from "../../api";
 
 interface GroupsMenuPageProps {
   onBack: () => void;
@@ -37,7 +38,7 @@ export function GroupsMenuPage({
 const handleJoinRequest = (groupId: string) => {
   const token = localStorage.getItem('token');
 
-  fetch(`http://localhost:8080/${groupId}/join-request`, {
+  fetch(`${API.base}/${groupId}/join-request`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

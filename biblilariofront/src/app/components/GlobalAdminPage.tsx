@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Shield, Ban, Check, UserCog, UserMinus, UserPlus, BookPlus, LogOut, X, Settings } from 'lucide-react';
 import { User } from '@/data/mockUsers';
 import { Book } from '@/app/components/BookTable';
+  import { useWebSocket, WebSocketProvider } from "../WebSocketContext";
+import { API } from "../../api";
+
 
 interface GlobalAdminPageProps {
   onBack?: () => void;
@@ -13,7 +16,7 @@ interface GlobalAdminPageProps {
   onToggleAdmin: (userId: string) => void;
   onDeleteUser: (userId: string) => void;
   onAddBook: (Book: any) => void;
-  bookSuggestions: Book[];
+  bookSuggestionsIn: Book[];
   onApproveSuggestion: (bookData: any) => void;
   onRejectSuggestion: (bookDate: any) => void;
   filteredUsers: User[];
@@ -32,7 +35,7 @@ export function GlobalAdminPage({
   onToggleAdmin,
   onDeleteUser,
   onAddBook,
-  bookSuggestions,
+  bookSuggestionsIn,
   onApproveSuggestion,
   onRejectSuggestion,
   filteredUsers,
@@ -45,6 +48,51 @@ export function GlobalAdminPage({
   const [bookSearchResult, setBookSearchResult] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const { clientRef, connected } = useWebSocket();
+  const [bookSuggestions, setbookSuggestions] = useState(bookSuggestionsIn);
+
+useEffect(() => {
+  setbookSuggestions(bookSuggestionsIn);
+}, [bookSuggestionsIn]);
+
+useEffect(() => {
+    console.log("🟢 useEffect läuft");
+  const client = clientRef.current;
+
+    console.log("🔌 client:", client);
+
+  if (!client) return;
+
+    console.log("🔗 connected:", client.connected);
+
+
+  if (!client.connected) return;
+
+  const sub = client.subscribe("/topic/admin/suggestions", (msg) => {
+      console.log("📩 RAW MESSAGE:", msg);
+
+    const data = JSON.parse(msg.body);
+      console.log("📦 PARSED DATA:", data);
+        console.log("🔎 TYPE:", data.type);
+       console.log("📦 PAYLOAD:", data.payload);
+
+      switch (data.type) {
+    case "CREATE":
+      setbookSuggestions((prev) => [...prev, data.payload]);
+      break;
+
+    case "DELETE":
+    case "PUT":
+      setbookSuggestions((prev) =>
+        prev.filter((s) => s.isbn !== data.payload.isbn)
+      );
+      break;
+        }
+  });
+
+  return () => sub.unsubscribe();
+}, [clientRef.current]);
+
 
 const handleIsbnSearch = async () => {
   try {
@@ -58,7 +106,7 @@ const handleIsbnSearch = async () => {
       return;
     }
 
-    const res = await fetch(`http://localhost:8080/books/add/${isbn}`, {
+    const res = await fetch(`${API.base}/books/add/${isbn}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -339,7 +387,7 @@ const handleIsbnSearch = async () => {
                     <tbody>
                       {bookSuggestions.map((suggestion) => (
                         <tr
-                          key={suggestion.id}
+                          key={suggestion.isbn}
                           className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
                         >
                           <td className="px-4 py-3 text-sm text-gray-800 font-medium">

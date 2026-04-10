@@ -6,6 +6,8 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import bookClubWebseite.BookClubBook.BookService;
 import bookClubWebseite.BookClubDTO.CreateInvitationDTO;
@@ -30,9 +33,15 @@ import bookClubWebseite.BookClubRating.RatingService;
 import bookClubWebseite.BookClubReader.BookReader;
 import bookClubWebseite.BookClubReader.BookReaderService;
 
-@Controller
+@RestController
 public class MessageController {
 
+    private final SimpUserRegistry simpUserRegistry;
+    
+    
+	@Autowired
+	private SimpMessagingTemplate messagingTemplate;
+	
 	@Autowired 
 	private MessageService messageService;
 	
@@ -51,7 +60,12 @@ public class MessageController {
 	@Autowired
 	private RatingService ratingService;
 
-	
+
+    public MessageController(SimpUserRegistry simpUserRegistry) {
+        this.simpUserRegistry = simpUserRegistry;
+    }
+
+    
 	@PutMapping("/messages/{id}/read")
 	public ResponseEntity<Void> markAsRead(@PathVariable Long id) {
 	    messageService.markAsRead(id);
@@ -84,6 +98,15 @@ public class MessageController {
                 msg.isInvitation(),
                 msg.getGroupId()
         );
+        
+
+        // ✅ LIVE an Empfänger senden
+        messagingTemplate.convertAndSendToUser(
+            recipient.getUsername(),
+            "/queue/messages",
+            messageDTO
+        );
+
 
         return ResponseEntity.ok(messageDTO);
     }	
@@ -160,8 +183,22 @@ public class MessageController {
     	
     	BookReader sender = bookReaderService.findByUsername(newMessage.getSenderName());
     	BookReader recipient = bookReaderService.findByUsername(newMessage.getReceiverName());
-    	System.out.println("Sende Nachricht von:"+sender.getUsername()+ "zu:"+recipient.getUsername());
-        return messageService.sendMessage(newMessage, sender, recipient);
+    	NewMessageDTO dt = messageService.sendMessage(newMessage, sender, recipient);
+    	
+
+        System.out.println("BROKER USERS:");
+        simpUserRegistry.getUsers()
+            .forEach(u -> System.out.println(" - " + u.getName()));
+
+    	System.out.println("SEND WS TO USER = " + recipient.getUsername());
+        messagingTemplate.convertAndSendToUser(
+            recipient.getUsername(),          // 👈 EMPFÄNGER
+            "/queue/messages",                 // 👈 PRIVATE QUEUE
+            dt                               // 👈 DTO
+        );
+
+        
+        return dt;
     }
 
 }
