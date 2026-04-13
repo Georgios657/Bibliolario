@@ -54,7 +54,7 @@ public class SecurityConfig {
                     		"/ws/**",
                     		"/ws", 
                     		"/ws/info/**",
-                    		"/",
+                    		"/health",
                     		"/favicon.ico"
                     		).permitAll()
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()

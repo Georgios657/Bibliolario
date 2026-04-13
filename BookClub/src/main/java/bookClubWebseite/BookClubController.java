@@ -84,10 +84,17 @@ public class BookClubController {
 	private BookSuggestionService bookSuggestionService;
 
 
-    @GetMapping("/")
-    public String home() {
-        return "BookClub API is running ✅";
+
+
+    @GetMapping("/health")
+    public Map<String, Object> health() {
+        return Map.of(
+            "status", "UP",
+            "application", "BookClub API"
+        );
     }
+
+
 	
 
 	
