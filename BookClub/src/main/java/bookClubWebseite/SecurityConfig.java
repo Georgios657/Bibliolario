@@ -34,12 +34,12 @@ public class SecurityConfig {
         this.userDetailsService = userDetailsService;
     }
 
-    @Bean
+   @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         // Filter selbst als Bean bauen, UserDetailsService lazy inject
         return new JwtAuthenticationFilter(jwtService, userDetailsService);
     }
-
+   
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
 
@@ -51,6 +51,8 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers(
+                    		"/",
+                    		"/error", 
                     		"/ws/**",
                     		"/ws", 
                     		"/ws/info/**",
@@ -68,7 +70,8 @@ public class SecurityConfig {
             .httpBasic(customizer  -> customizer .disable())
             .formLogin(form -> form.disable())
 
-            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+        //    .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+            ;
 
         return http.build();
     }

@@ -16,7 +16,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
-@Component
+//@Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -26,8 +26,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 		@Override
 		protected boolean shouldNotFilter(HttpServletRequest request) {
-		    String path = request.getServletPath();
-		    return path.equals("/health") || path.startsWith("/ws");
+		    String path = request.getRequestURI();
+		    System.out.println("PATH: '" + path + "'");
+
+		    if (path == null || path.isEmpty() || path.equals("/")) {
+		        return true;
+		    }
+
+		    return path.startsWith("/health")
+		        || path.startsWith("/ws")
+		        || path.startsWith("/api/auth");
+
 		}
 
 
