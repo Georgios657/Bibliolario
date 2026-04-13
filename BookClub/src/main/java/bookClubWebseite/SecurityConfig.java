@@ -50,7 +50,13 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/ws/**", "/ws", "/ws/info/**").permitAll()
+                    .requestMatchers(
+                    		"/ws/**",
+                    		"/ws", 
+                    		"/ws/info/**",
+                    		"/",
+                    		"/favicon.ico"
+                    		).permitAll()
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers("/api/auth/**").permitAll()
                     .requestMatchers("/register").permitAll()
