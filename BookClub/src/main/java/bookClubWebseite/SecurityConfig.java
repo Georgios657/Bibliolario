@@ -71,7 +71,7 @@ public class SecurityConfig {
             .httpBasic(customizer  -> customizer .disable())
             .formLogin(form -> form.disable())
 
-        //    .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+         .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
             ;
         System.out.println("CSRF disabled");
         return http.build();
@@ -93,7 +93,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
         		"http://localhost:5173",
-        	       "https://bookclub-api.onrender.com"
+        		"https://bookclubappfront.onrender.com"
             ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
