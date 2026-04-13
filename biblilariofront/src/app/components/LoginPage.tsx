@@ -23,7 +23,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   setError('');
 
   try {
-    const response = await fetch('${API.base}/api/auth/login', {
+    const response = await fetch(`${API.base}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
