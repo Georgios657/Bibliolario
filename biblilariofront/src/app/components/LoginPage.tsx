@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AlertCircle } from 'lucide-react';
+import { API } from "../../api";
 
 interface LoginPageProps {
   onLogin: (userId: string, userName: string, role: string) => void;
@@ -22,7 +23,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   setError('');
 
   try {
-    const response = await fetch('/api/auth/login', {
+    const response = await fetch('${API.base}/api/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

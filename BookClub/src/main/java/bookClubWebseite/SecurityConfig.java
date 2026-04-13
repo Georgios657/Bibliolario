@@ -92,7 +92,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
         		"http://localhost:5173",
-        	       "https://corrections-maintenance-eat-educational.trycloudflare.com"
+        	       "https://bookclub-api.onrender.com"
             ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
