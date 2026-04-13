@@ -9,7 +9,6 @@ bin/
 
 # Node/Vite/React
 node_modules/
-dist/
 
 # OS
 .DS_Store
