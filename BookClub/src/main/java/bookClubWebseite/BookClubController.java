@@ -83,6 +83,11 @@ public class BookClubController {
 	@Autowired
 	private BookSuggestionService bookSuggestionService;
 
+
+    @GetMapping("/")
+    public String home() {
+        return "BookClub API is running ✅";
+    }
 	
 
 	
@@ -125,12 +130,6 @@ public class BookClubController {
 		
 	}
 	
-    @GetMapping("/")
-    public String home() {
-        return "home"; // Zeigt home.html
-    }
-
-    
 
     @GetMapping("/ownCollection")
     @ResponseBody
