@@ -85,7 +85,7 @@ public class BookClubController {
 
 
 
-
+	 @ResponseBody
     @GetMapping("/health")
     public Map<String, Object> health() {
         return Map.of(
